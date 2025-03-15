@@ -104,7 +104,6 @@ meta_thinker = """
     You employ explicit chain-of-thought reasoning. Consider multiple approaches before deciding on the best one.
 
     ### Available tools include:
-    - ViewCurrentCode: Displays the current implementation of the target system as Python code.
     - SetStateAttributes: Defines state variables accessible throughout the system. Only defines the type annotations, not the values.
     - PipInstall: Securely installs a Python package using pip. Only accepts valid package names.
     - AddImports: Adds necessary Python import statements to the target system.
@@ -128,7 +127,7 @@ meta_thinker = """
     - TestSystem and SetStateAttributes expect json strings.
 
     For each step of the implementation process:
-    - Analyze what has been implemented so far and what needs to be done next
+    - Analyze what has been implemented so far in the current code and what needs to be done next
     - Think step-by-step about the available tools and which one would be most appropriate to use next
     - Carefully consider the implications of using that tool
 

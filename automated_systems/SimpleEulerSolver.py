@@ -8,16 +8,13 @@ import os
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage
 from typing import Dict, List, Any, Callable, Optional, Union, TypeVar, Generic, Tuple, Set, TypedDict
 from agentic_system.large_language_model import LargeLanguageModel, execute_tool_calls
-import subprocess
 
 
 def build_system():
     # Define state attributes for the system
     class AgentState(TypedDict):
         messages: List[Any]
-        problem_description: str
-        code: str
-        result: str
+        input: str
 
     # Initialize graph with state
     graph = StateGraph(AgentState)
@@ -25,95 +22,82 @@ def build_system():
     # Tool definitions
     # ===== Tool Definitions =====
     tools = {}
-    # Tool: ExecuteCode
-    # Description: Executes the given Python code and returns the output.
-    def executecode_function(code: str) -> str:
-        """Executes the given Python code and returns the output.
+    # Tool: ExecutePythonCode
+    # Description: Executes given Python code and returns the output or an error message if execution fails.
+    def executepythoncode_function(code: str) -> str:
+        '''Executes the given Python code and returns the output.
     
         Args:
             code (str): The Python code to execute.
     
         Returns:
-            str: The output of the code execution, or an error message if execution fails.
-        """
+            str: The output of the executed code, or an error message if execution fails.
+        '''
         try:
-            process = subprocess.Popen(['python3', '-c', code],
-                                       stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE,
-                                       text=True)
-            stdout, stderr = process.communicate(timeout=10)  # Add a timeout to prevent infinite loops
+            import io, sys
+            from contextlib import redirect_stdout
     
-            if stderr:
-                return f"Error: {stderr}"
-            else:
-                return stdout.strip()
-        except subprocess.TimeoutExpired:
-            process.kill()
-            return "Error: Code execution timed out."
+            # Redirect stdout to capture the output
+            f = io.StringIO()
+            with redirect_stdout(f):
+                # Execute the code
+                exec(code)
+            output = f.getvalue()
+            return output
         except Exception as e:
-            return f"Error: {str(e)}"
+            return str(e)
 
-    tools["ExecuteCode"] = tool(runnable=executecode_function, name_or_callable="ExecuteCode")
+    tools["ExecutePythonCode"] = tool(runnable=executepythoncode_function, name_or_callable="ExecutePythonCode")
 
     # Register tools with LargeLanguageModel class
     LargeLanguageModel.register_available_tools(tools)
     # ===== Node Definitions =====
-    # Node: SolveProblem
-    # Description: An agent that takes a problem description and generates Python code to solve it, executing the code to return the result.
-    def solveproblem_function(state):
-        """Solves the given Project Euler problem using Python code.
+    # Node: AgentNode
+    # Description: An agent that solves Project Euler problems by generating and executing Python code.
+    def agentnode_function(state):
+        llm = LargeLanguageModel(temperature=0.0)
+        system_prompt = """You are an expert Python programmer and mathematician. Your goal is to solve Project Euler problems. You will be given a problem description as input. You must generate Python code that solves the problem and then execute the code using the ExecutePythonCode tool. You should first briefly explain your approach, and then present only the final answer, without further explanation.
     
-        Args:
-            state (dict): The current state of the system, including the problem description.
-    
-        Returns:
-            dict: The updated state of the system, including the generated code and the result.
-        """
-        llm = LargeLanguageModel(temperature=0.0)  # Set temperature to 0 for more deterministic results
-        system_prompt = """You are an expert Python programmer tasked with solving Project Euler problems.
-        You will be given a problem description, and your goal is to write Python code that solves the problem.
-        You have access to a tool called `ExecuteCode` that allows you to execute Python code and get the output.
-        Use this tool to execute the code and verify that it solves the problem correctly.
-        Once you are satisfied with the solution, return the final answer.
-    
-        Here's how you should proceed:
-        1.  Read the problem description carefully and make sure you understand it completely.
-        2.  Write Python code that solves the problem.
-        3.  Use the `ExecuteCode` tool to execute the code and get the output.
-        4.  If the output is incorrect or an error occurs, analyze the code and fix any bugs.
-        5.  Repeat steps 3 and 4 until the code produces the correct output.
-        6.  Return the final answer.
+        Here's how you should operate:
+        1. Understand the Problem: Carefully read and understand the problem statement.
+        2. Plan your Solution: Break down the problem into smaller, manageable steps.
+        3. Explain your Approach: Briefly describe your plan to solve the problem *before* generating any code.
+        4. Generate Python Code: Write Python code to implement your solution. Ensure the code is correct, efficient, and well-formatted.
+        5. Execute the Code: Use the ExecutePythonCode tool to run your code.
+        6. Analyze the Results: Check the output of the code execution. If there are errors, debug your code and re-execute it.
+        7. Present the Answer: Once you have the correct answer, present it clearly and concisely. Present ONLY the final numerical answer.
     
         Example:
         Problem: Find the sum of the digits in the number 100!
-        Code:
+        Solution:
+        First, I will calculate 100! using the math.factorial function. Then, I will convert the result to a string, iterate through the digits, convert them back to integers, and sum them up.
         ```python
         import math
         number = math.factorial(100)
-        s = 0
-        for digit in str(number):
-            s += int(digit)
-        print(s)
+        sum_digits = sum(int(digit) for digit in str(number))
+        print(sum_digits)
         ```
         """
     
-        problem_description = state["problem_description"]
-        messages = state.get("messages", [])
-        full_messages = [SystemMessage(content=system_prompt), HumanMessage(content=f"Problem: {problem_description}")]
+        llm = llm.bind_tools(["ExecutePythonCode"])
     
-        llm.bind_tools(["ExecuteCode"])
+        messages = state.get("messages", [])
+        input_problem = state.get("input", "")
+        messages.append(HumanMessage(content=input_problem))
+        full_messages = [SystemMessage(content=system_prompt)] + messages
         response = llm.invoke(full_messages)
         tool_messages, tool_results = execute_tool_calls(response)
     
-        new_state = {"messages": messages + [response] + tool_messages, "result": str(tool_results)}
+        new_state = {"messages": messages + [response] + tool_messages}
     
         return new_state
+    
 
-    graph.add_node("SolveProblem", solveproblem_function)
+    graph.add_node("AgentNode", agentnode_function)
 
     # ===== Entry/Exit Configuration =====
-    graph.set_entry_point("SolveProblem")
-    graph.set_finish_point("SolveProblem")
+    graph.set_entry_point("AgentNode")
+    graph.set_finish_point("AgentNode")
 
     # ===== Compilation =====
     workflow = graph.compile()

@@ -1,6 +1,6 @@
 # MetaSystem System Configuration
 # Total nodes: 3
-# Total tools: 15
+# Total tools: 14
 
 from langgraph.graph import StateGraph
 from langchain_core.tools import tool
@@ -69,23 +69,6 @@ def build_system():
     
 
     tools["PipInstall"] = tool(runnable=pipinstall_function, name_or_callable="PipInstall")
-
-    # Tool: ViewCurrentCode
-    # Description: Shows the current implementation of the target system
-    def viewcurrentcode_function() -> str:
-        """View the current implementation of the target system.
-    
-        Returns:
-            Generated code for the current target system
-        """
-        try:
-            source_code = materialize_system(target_system, output_dir=None)
-            return source_code
-        except Exception as e:
-            return f"Error retrieving system code: {repr(e)}"
-    
-
-    tools["ViewCurrentCode"] = tool(runnable=viewcurrentcode_function, name_or_callable="ViewCurrentCode")
 
     # Tool: AddImports
     # Description: Adds custom import statements to the target system
@@ -336,7 +319,7 @@ def build_system():
             Test results along with intermediate outputs and any error messages encountered.
         """
         all_outputs = []
-        error_message = "\nIf something is not working, it is often helpful to view the current code."
+        error_message = ""
         state = json.loads(state)
     
         try:
@@ -361,7 +344,7 @@ def build_system():
     
         except Exception as e:
             tb_string = traceback.format_exc()
-            error_message = f"\n\n Error while testing the system:\n{tb_string}\nPlease view the current code to find inconsistencies."
+            error_message = f"\n\n Error while testing the system:\n{tb_string}"
     
         result = all_outputs if all_outputs else {}
     
@@ -471,7 +454,12 @@ def build_system():
     def metathinker_function(state: Dict[str, Any]) -> Dict[str, Any]:
         llm = LargeLanguageModel(temperature=0.4, model_name="gemini-2.0-flash", wrapper="google")
         messages = state.get("messages", [])
-        full_messages = [SystemMessage(content=system_prompts.meta_thinker)] + messages
+        initial_message, current_messages = messages[0], messages[1:]
+        last_messages = current_messages[-3:] if len(current_messages) >= 3 else current_messages
+    
+        code_message = "Current Code:\n" + materialize_system(target_system, output_dir=None)
+    
+        full_messages = [SystemMessage(content=system_prompts.meta_thinker), initial_message] + last_messages + [HumanMessage(content=code_message)]
         response = llm.invoke(full_messages)
         return {"messages": messages + [response]}
     
@@ -484,7 +472,7 @@ def build_system():
         llm = LargeLanguageModel(temperature=0.4)
     
         llm.bind_tools([
-            "ViewCurrentCode", "SetStateAttributes", "PipInstall", "AddImports", "CreateNode", 
+            "SetStateAttributes", "PipInstall", "AddImports", "CreateNode", 
             "CreateTool", "EditComponent", "AddEdge", "AddConditionalEdge", 
             "DeleteConditionalEdge", "SetEndpoints", 
             "TestSystem", "DeleteNode", "DeleteEdge", "EndDesign"

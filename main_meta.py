@@ -30,8 +30,11 @@ def run_meta_system_in_sandbox(session, problem_statement, target_name, optimize
 
 def main():
     prompt = """
-    Design a system to solve project euler tasks. It should be really small and easy for the start, 
-    maybe just one agent and one tool.
+    Design a system to solve 'Project Euler' tasks.
+    Project Euler challenges participants to solve complex mathematical and computational problems
+    using programming skills and mathematical insights.
+    
+    The system should be really small and easy for the start, just one agent and one tool.
     The tool should be really generic, just an exec tool; so that the agent can solve any problem.
     The agent should have a clear and comprehensive system prompt so that it know how to use the tool.
     """
@@ -73,7 +76,7 @@ def main():
             print("Finished successfully!")
         else:
             print("Failed to set up sandbox environment")
-        
+
     finally:
         print("Session closed.")
         session.close()

@@ -1,5 +1,5 @@
 from typing import Dict, List, Any, Optional, Union
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import SystemMessage, HumanMessage
 from agentic_system.large_language_model import LargeLanguageModel, execute_tool_calls
 from agentic_system.virtual_agentic_system import VirtualAgenticSystem
 from agentic_system.materialize import materialize_system
@@ -72,24 +72,6 @@ def create_meta_system():
         "PipInstall",
         "Securely installs a Python package using pip",
         pip_install
-    )
-    
-    def view_current_code() -> str:
-        """View the current implementation of the target system.
-        
-        Returns:
-            Generated code for the current target system
-        """
-        try:
-            source_code = materialize_system(target_system, output_dir=None)
-            return source_code
-        except Exception as e:
-            return f"Error retrieving system code: {repr(e)}"
-   
-    meta_system.create_tool(
-        "ViewCurrentCode",
-        "Shows the current implementation of the target system",
-        view_current_code
     )
     
     def add_imports(import_statement: str) -> str:
@@ -348,7 +330,7 @@ def create_meta_system():
             Test results along with intermediate outputs and any error messages encountered.
         """
         all_outputs = []
-        error_message = "\nIf something is not working, it is often helpful to view the current code."
+        error_message = ""
         state = json.loads(state)
 
         try:
@@ -373,7 +355,7 @@ def create_meta_system():
 
         except Exception as e:
             tb_string = traceback.format_exc()
-            error_message = f"\n\n Error while testing the system:\n{tb_string}\nPlease view the current code to find inconsistencies."
+            error_message = f"\n\n Error while testing the system:\n{tb_string}"
 
         result = all_outputs if all_outputs else {}
 
@@ -485,7 +467,12 @@ def create_meta_system():
     def meta_thinker_function(state: Dict[str, Any]) -> Dict[str, Any]:
         llm = LargeLanguageModel(temperature=0.4, model_name="gemini-2.0-flash", wrapper="google")
         messages = state.get("messages", [])
-        full_messages = [SystemMessage(content=system_prompts.meta_thinker)] + messages
+        initial_message, current_messages = messages[0], messages[1:]
+        last_messages = current_messages[-3:] if len(current_messages) >= 3 else current_messages
+
+        code_message = "Current Code:\n" + materialize_system(target_system, output_dir=None)
+
+        full_messages = [SystemMessage(content=system_prompts.meta_thinker), initial_message] + last_messages + [HumanMessage(content=code_message)]
         response = llm.invoke(full_messages)
         return {"messages": messages + [response]}
     
@@ -493,7 +480,7 @@ def create_meta_system():
         llm = LargeLanguageModel(temperature=0.4)
 
         llm.bind_tools([
-            "ViewCurrentCode", "SetStateAttributes", "PipInstall", "AddImports", "CreateNode", 
+            "SetStateAttributes", "PipInstall", "AddImports", "CreateNode", 
             "CreateTool", "EditComponent", "AddEdge", "AddConditionalEdge", 
             "DeleteConditionalEdge", "SetEndpoints", 
             "TestSystem", "DeleteNode", "DeleteEdge", "EndDesign"
