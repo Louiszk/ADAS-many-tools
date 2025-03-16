@@ -31,9 +31,6 @@ def main():
             try:
                 with open(path + '.pkl', 'rb') as f:
                     MetaSystem.target_system = pickle.load(f)
-                
-                with open(path + '.py', 'r') as f:
-                    initial_code = f.read()
 
                 MetaSystem.target_system.system_name = system_name
 
