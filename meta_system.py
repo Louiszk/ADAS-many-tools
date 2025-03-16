@@ -466,9 +466,10 @@ def create_meta_system():
     
     def meta_thinker_function(state: Dict[str, Any]) -> Dict[str, Any]:
         llm = LargeLanguageModel(temperature=0.4, model_name="gemini-2.0-flash", wrapper="google")
+        context_length = 4*3 # multiples of three
         messages = state.get("messages", [])
         initial_message, current_messages = messages[0], messages[1:]
-        last_messages = current_messages[-3:] if len(current_messages) >= 3 else current_messages
+        last_messages = current_messages[-context_length:] if len(current_messages) >= context_length else current_messages
 
         code_message = "Current Code:\n" + materialize_system(target_system, output_dir=None)
 
