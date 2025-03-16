@@ -26,7 +26,6 @@ def main():
    
     try:
         # Optimize another agentic system
-        initial_code = "# Total nodes: 0, Tools: 0"
         if optimize_from_file:
             path = "/sandbox/workspace/automated_systems/" + optimize_from_file.replace("/", "_").replace("\\", "_").replace(":", "_")
             try:
@@ -46,8 +45,7 @@ def main():
             MetaSystem.target_system = VirtualAgenticSystem(system_name)
        
         workflow, tools = MetaSystem.build_system()
-        content = problem_statement + "\n\n Initial Code:\n" + initial_code
-        inputs = {"messages": [HumanMessage(content=content)]}
+        inputs = {"messages": [HumanMessage(content=problem_statement)]}
        
         print("Streaming meta system execution...")
         for output in workflow.stream(inputs, config={"recursion_limit": 80}):
