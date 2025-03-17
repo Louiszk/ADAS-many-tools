@@ -1,6 +1,8 @@
 # Automated Design of Agentic Systems
 
-First version with multiple tools in a loop
+Second version using unified diffs, with the help of:
+
+[https://github.com/Aider-AI/aider/blob/main/aider/coders/udiff_coder.py](https://github.com/Aider-AI/aider/blob/main/aider/coders/udiff_coder.py)
 
 ![MetaSystem](systems/MetaSystem.png)
 
@@ -52,13 +54,12 @@ docker --version
 The meta system is an agentic system that can design other agentic systems.
 
 ```bash
-python main_meta.py --name "MySystem" --problem "Create a system that can..." --materialize
+python main_meta.py --name "MySystem" --problem "Create a system that can..."
 ```
 
 Options:
 - `--name`: Target system name
 - `--problem`: Problem statement to solve
-- `--materialize`: Materialize meta system first (should be set for the first start)
 - `--reinstall`: Reinstall dependencies (should be set for the first start)
 - `--optimize-system`: Name of existing system to optimize
 

@@ -34,9 +34,9 @@ def setup_sandbox_environment(session, reinstall=False):
     session.execute_command("mkdir -p /sandbox/workspace/automated_systems")
     
     required_files = [
-        ("agentic_system/virtual_agentic_system.py", "/sandbox/workspace/agentic_system/virtual_agentic_system.py"),
         ("agentic_system/large_language_model.py", "/sandbox/workspace/agentic_system/large_language_model.py"),
-        ("agentic_system/materialize.py", "/sandbox/workspace/agentic_system/materialize.py"),
+        ("agentic_system/udiff.py", "/sandbox/workspace/agentic_system/udiff.py"),
+        ("agentic_system/target_system_template.py", "/sandbox/workspace/agentic_system/target_system_template.py"),
         ("systems/system_prompts.py", "/sandbox/workspace/systems/system_prompts.py"),
         ("systems/MetaSystem.py", "/sandbox/workspace/systems/MetaSystem.py"),
         ("sandbox/run_meta.py", "/sandbox/workspace/run_meta.py"),
@@ -56,8 +56,7 @@ def setup_sandbox_environment(session, reinstall=False):
             "langgraph==0.3.5", 
             "langchain_openai==0.3.8",
             "langchain_google_genai==2.0.11",
-            "python-dotenv==1.0.1",
-            "dill==0.3.9"
+            "python-dotenv==1.0.1"
         ]
         session.execute_command(f"pip install {' '.join(dependencies)}")
     
