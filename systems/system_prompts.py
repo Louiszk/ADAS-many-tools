@@ -154,6 +154,7 @@ meta_thinker = """
 
     ### **IMPORTANT WORKFLOW RULES**:
     - You design the system iteratively. Make only one tool call and wait for the response before continuing
+    - First set the necessary state attributes, other attributes cannot be accessed.
     - Always test before ending the design process
     - Set workflow endpoints before testing
     - All functions should be defined with 'def', do not use lambda functions.
