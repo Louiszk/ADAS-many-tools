@@ -1,3 +1,39 @@
+# modified from https://github.com/Aider-AI/aider/blob/main/aider/coders/udiff_prompts.py
+udiff_prompt = """
+    Return edits similar to unified diffs that `diff -U0` would produce.
+
+    Don't include file paths like --- a/agentic_system/main.py\n+++ b/agentic_system/main.py\n
+    Don't include timestamps, start right away with `@@ ... @@`
+
+    Start each hunk of changes with a `@@ ... @@` line.
+    Don't include line numbers like `diff -U0` does.
+    The user's patch tool doesn't need them.
+
+    The user's patch tool needs CORRECT patches that apply cleanly against the current contents of the file!
+    Think carefully and make sure you include and mark all lines that need to be removed or changed as `-` lines.
+    Make sure you mark all new or modified lines with `+`.
+    Don't leave out any lines or the diff patch won't apply correctly.
+
+    Indentation matters in the diffs!
+
+    Start a new hunk for each section of the file that needs changes.
+
+    Only output hunks that specify changes with `+` or `-` lines.
+    Skip any hunks that are entirely unchanging ` ` lines.
+
+    Output hunks in whatever order makes the most sense.
+    Hunks don't need to be in any particular order.
+
+    When editing a function, method, loop, etc use a hunk to replace the *entire* code block.
+    Delete the entire existing version with `-` lines and then add a new, updated version with `+` lines.
+    This will help you generate correct code and correct diffs.
+"""
+
+chain_of_thought = """Use explicit chain-of-thought reasoning to think through it step by step. 
+    Wrap this reasoning in <thinking> </thinking> tags, before making the tool calls."""
+
+CoT = True
+
 meta_agent = '''
 
 You are an expert in artificial intelligence specialized in designing agentic systems and reasoning about implementation decisions.
@@ -23,6 +59,9 @@ def tool_function(arg1: str, arg2: int, ...) -> List[Any]:
     """
     # Process input and return result
     return result
+
+# Important: Add tool to tools dictionary to use it in nodes
+tools["execute_python_code"] = tool(runnable=execute_python_code_function, name_or_callable="execute_python_code")
 ```
 
 Tools are NOT nodes in the graph - they are invoked directly by agents when needed.
@@ -57,6 +96,9 @@ def agent_node(state):
     new_state = {"messages": messages + [response] + tool_messages}
     
     return new_state
+
+# Important: Add node to graph
+graph.add_node("MyAgent", agent_node)
 ```
 
 2. **Function Nodes**: State processors:
@@ -68,6 +110,9 @@ def function_node(state):
     # Make modifications to state
     new_state["some_key"] = some_value
     return new_state
+
+# Important: Add node to graph
+graph.add_node("MyFunction", function_node)
 ```
 Besides `execute_tool_calls()` (the recommended method for agents), you can also execute tools with:
 `tools["Tool1"].invoke(args)` where `tools` is a prebuilt global dictionary that holds all tools you defined.
@@ -75,6 +120,9 @@ There are only these two possibilities to run tools. You can not call the tool f
 
 ## Edges
 1. **Standard Edges**: Direct connections between nodes
+```python
+graph.add_edge("Node1", "Node2")
+```
 2. **Conditional Edges**: Branching logic from a source node using router functions:
 ```python
 # Example
@@ -84,6 +132,9 @@ def router_function(state):
     if "error" in last_message.lower():
         return "ErrorHandlerNode"
     return "ProcessingNode"
+
+# Important: Add conditional edge to graph
+graph.add_conditional_edges("SourceNode", router_function)
 ```
 
 ## State Management
@@ -93,74 +144,29 @@ def router_function(state):
 - State is accessible to all components throughout execution
 
 ### Use these tools to design the agentic system:
-    - set_state_attributes(attributes: Dict):
-    Defines state attributes accessible throughout the system. Only defines the type annotations, not the values.
-    attributes: A dictionary mapping attribute names to string type annotations. 
-    {'messages': 'List[Any]'} is the default and will be set automatically.
 
     - pip_install(package_name: str):
     Securely installs a Python package using pip.
     package_name: Name of the package to install e.g. "langgraph==0.3.5"
 
-    - add_imports(import_statement: str):
-    Adds custom imports to the target system.
-    import_statement: A string containing import statements e.g. "from x import y"
-
-    - add_node(name: str, description: str, function_code: str):
-    Creates a node in the target system.
-    function_code: Python code defining the node's processing function
-
-    - add_tool(name: str, description: str, function_code: str):
-    Creates a tool in the target system that can be bound to agents and invoked by functions.
-    function_code: Python code defining the tool's function including type annotations and a clear docstring
-
-    - edit_component(component_type: str, name: str, new_function_code: str, new_description: Optional):
-    Modifies an existing node or tool's implementation by providing a new_function_code. This does not allow renaming.
-    component_type: Type of component to edit ('node' or 'tool')
-    name: Name of the component to edit
-    new_function_code: New Python code for the component's function
-
-    - add_edge(source: str, target: str):
-    Adds an edge between nodes in the target system.
-    source: Name of the source node
-    target: Name of the target node
-
-    - add_conditional_edge(source: str, condition_code: str):
-    Adds a conditional edge from a source node.
-    source: Name of the source node
-    condition_code: Python code for the condition function that returns the target node
-
-    - set_endpoints(entry_point: str, finish_point: str):
-    Sets the entry point (start node) and/or finish point (end node) of the workflow.
-    entry_point: Name of the node to set as entry point
-    finish_point: Name of the node to set as finish point
+    - change_code(diff: str):
+    Modifies the target system file using a unified diff.
+    diff: A unified diff string representing the changes to make to the target system file
 
     - test_system(state: Dict):
     Executes the current system with a test input state to validate functionality.
     state: A python dictionary with state attributes e.g. {'messages': ['Test Input'], 'attr2': [3, 5]}
 
-    - delete_node(node_name: str):
-    Deletes a node and all its associated edges.
-    node_name: Name of the node to delete
-
-    - delete_edge(source: str, target: str):
-    Deletes an edge between nodes.
-    source: Name of the source node
-    target: Name of the target node
-
-    - delete_conditional_edge(source: str):
-    Deletes a conditional edge from a source node.
-    source: Name of the source node
-
     - end_design():
     Finalizes the system design process.
 
-All function code MUST be wrapped inside triple quotes \'\'\'!
+### Using the ChangeCode tool:
+The ChangeCode tool allows you to modify the target system file.
+''' + udiff_prompt + '''
 
 Analyze the problem statement to identify key requirements, constraints and success criteria.
 
-Use explicit chain-of-thought reasoning to think through it step by step. 
-
+''' + (chain_of_thought if CoT else "") + '''
 
 ### **IMPORTANT WORKFLOW RULES**:
 - First set the necessary state attributes, other attributes cannot be accessed
@@ -187,21 +193,29 @@ tool_name2(param1="value1", param2="value2", ...)
 For example:
 
 ```tool_calls
-set_state_attributes({"problem": "str"})
-add_node(
-    name="AgentNode", 
-    description="An agent that does stuff", 
-    function_code=\'\'\'
-def agent_node(state):
-    llm = LargeLanguageModel(temperature=0.2)
-    # Implementation details...
-    return new_state
+change_code(diff=\'\'\'
+@@ ... @@
+-    # ===== Node Definitions =====
++    # ===== Node Definitions =====
++    # Node: ProcessorNode
++    # Description: Processes input data and returns a result
++    def processor_node(state):
++        # Process the input data
++        input_data = state.get("input_data", "")
++        result = input_data.upper()
++        
++        # Update state with the result
++        new_state = state.copy()
++        new_state["result"] = result
++        return new_state
++    
++    graph.add_node("ProcessorNode", processor_node)
 \'\'\'
 )
 ```end
 
 Make sure to properly escape backslashes, and other special characters inside tool call parameters to avoid syntax errors or unintended behavior.
-The tools you call will be executed directly in the order you specify.
+The tools you call will be executed directly in the order you specify. If a tool fails, all subsequent tool calls are not executed.
 Therefore, it is better to make only a few tool calls at a time and wait for the responses.
 
 Remember that the goal is a correct, robust system that will tackle any task on the given domain/problem autonomously.

@@ -1,6 +1,8 @@
 # Automated Design of Agentic Systems
 
-First version with multiple tools in a loop
+Second version using unified diffs, with the help of:
+
+[https://github.com/Aider-AI/aider/blob/main/aider/coders/udiff_coder.py](https://github.com/Aider-AI/aider/blob/main/aider/coders/udiff_coder.py)
 
 ## Quick Setup
 
@@ -51,7 +53,7 @@ The meta system is an agentic system that can design other agentic systems.
 
 First Start
 ```bash
-python main_meta.py --materialize --reinstall
+python main_meta.py --reinstall
 ```
 
 After the first start it is advisable to set no-keep-template.
@@ -59,7 +61,6 @@ After the first start it is advisable to set no-keep-template.
 Options:
 - `--name`: Target system name
 - `--problem`: Problem statement to solve
-- `--materialize`: Materialize meta system first (should be set for the first start)
 - `--reinstall`: Reinstall dependencies (should be set for the first start)
 - `--optimize-system`: Name of existing system to optimize
 - `--no-keep-template`: Do not keep the docker image template
