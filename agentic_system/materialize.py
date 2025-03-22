@@ -4,7 +4,7 @@ import re
 import os
 import copy
 
-def get_function_source(func, target_name=None):
+def get_function_source(func):
     """Extract source code from a function."""
     try:
         if hasattr(func, '_source_code'):
@@ -25,20 +25,18 @@ def get_function_source(func, target_name=None):
             
         lines = lines[func_def_line:]
     
-        if target_name:
-            match = re.search(r'def\s+([^\s(]+)', lines[0])
-            if match:
-                original_name = match.group(1)
-                lines[0] = re.sub(r'\b' + re.escape(original_name) + r'\b', target_name, lines[0])
+        match = re.search(r'def\s+([^\s(]+)', lines[0])
+        if match:
+            original_name = match.group(1)
+        else:
+            ValueError("Could not find function definition")
         
         source = '\n'.join(lines)
         source = textwrap.dedent(source)
 
-        return source
+        return original_name, source
     except Exception as e:
-        print(repr(e))
-        error_msg = repr(e).replace('"', '\\"')
-        return f'def {target_name or "unknown_function"}(state):\n    return "Function could not be extracted: {error_msg}"'
+        raise ValueError(repr(e))
 
 def materialize_system(system, output_dir="systems"):
     """Generate Python code representation of the system."""
@@ -88,14 +86,13 @@ def materialize_system(system, output_dir="systems"):
         tool_implementations = {}
         
         for tool_name, description in system.tools.items():
-            function_name = f"{tool_name.lower()}_function"
             
             func_source = ""
             if tool_name in system.tool_functions:
                 func = system.tool_functions[tool_name]
-                func_source = get_function_source(func, function_name)
+                original_name, func_source = get_function_source(func)
             else:
-                func_source = f"def {function_name}(input_str):\n    return f\"Processed {{input_str}} with {tool_name}\""
+                raise KeyError(f"{tool_name} code not found.")
             
             tool_implementations[tool_name] = func_source
             
@@ -106,7 +103,7 @@ def materialize_system(system, output_dir="systems"):
                 f"    # Description: {description}",
                 indented_source,
                 "",
-                f"    tools[\"{tool_name}\"] = tool(runnable={function_name}, name_or_callable=\"{tool_name}\")",
+                f"    tools[\"{tool_name}\"] = tool(runnable={original_name}, name_or_callable=\"{tool_name}\")",
                 ""
             ])
 
@@ -120,14 +117,13 @@ def materialize_system(system, output_dir="systems"):
         node_implementations = {}
         
         for node_name, description in system.nodes.items():
-            function_name = f"{node_name.lower()}_function"
             
             func_source = ""
             if node_name in system.node_functions:
                 func = system.node_functions[node_name]
-                func_source = get_function_source(func, function_name)
+                original_name, func_source = get_function_source(func)
             else:
-                func_source = f"def {function_name}(state):\n    return state"
+                raise KeyError(f"{node_name} code not found.")
 
             node_implementations[node_name] = func_source
             
@@ -138,7 +134,7 @@ def materialize_system(system, output_dir="systems"):
                 f"    # Description: {description}",
                 indented_source,
                 "",
-                f"    graph.add_node(\"{node_name}\", {function_name})",
+                f"    graph.add_node(\"{node_name}\", {original_name})",
                 ""
             ])
     
@@ -159,14 +155,13 @@ def materialize_system(system, output_dir="systems"):
         condition_implementations = {}
         
         for source, edge_info in system.conditional_edges.items():
-            function_name = f"{source.lower()}_router"
-            
+
             func_source = ""
             if "condition" in edge_info:
                 func = edge_info["condition"]
-                func_source = get_function_source(func, function_name)
+                original_name, func_source = get_function_source(func)
             else:
-                func_source = f"def {function_name}(state):\n    return \"default_target\""
+                raise KeyError("Condition code not found.")
 
             condition_implementations[source] = func_source
             
@@ -181,7 +176,7 @@ def materialize_system(system, output_dir="systems"):
                 f"    # Conditional Router from: {source}",
                 indented_source,
                 "",
-                f"    graph.add_conditional_edges(\"{source}\", {function_name}{path_map_str})",
+                f"    graph.add_conditional_edges(\"{source}\", {original_name}{path_map_str})",
                 ""
             ])
 

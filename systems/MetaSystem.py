@@ -1,5 +1,5 @@
 # MetaSystem System Configuration
-# Total nodes: 3
+# Total nodes: 2
 # Total tools: 14
 
 from langgraph.graph import StateGraph
@@ -24,6 +24,7 @@ def build_system():
     # Define state attributes for the system
     class AgentState(TypedDict):
         messages: List[Any]
+        design_completed: bool
 
     # Initialize graph with state
     graph = StateGraph(AgentState)
@@ -33,15 +34,10 @@ def build_system():
     tools = {}
     # Tool: PipInstall
     # Description: Securely installs a Python package using pip
-    def pipinstall_function(package_name: str) -> str:
-        """Securely install a Python package using pip.
-    
-        Args:
-            package_name: Name of the package to install. Only accepts valid package names 
-                        (letters, numbers, dots, underscores, dashes).
-    
-        Returns:
-            Installation result message
+    def pip_install(package_name: str) -> str:
+        """
+            Securely installs a Python package using pip.
+                package_name: Name of the package to install e.g. "langgraph==0.3.5"
         """
     
         # Validate package name to prevent command injection
@@ -68,18 +64,14 @@ def build_system():
             return f"Installation failed: {str(e)}"
     
 
-    tools["PipInstall"] = tool(runnable=pipinstall_function, name_or_callable="PipInstall")
+    tools["PipInstall"] = tool(runnable=pip_install, name_or_callable="PipInstall")
 
     # Tool: AddImports
     # Description: Adds custom import statements to the target system
-    def addimports_function(import_statement: str) -> str:
-        """Add custom imports to the target system.
-    
-        Args:
-            import_statement: A string containing import statements
-    
-        Returns:
-            Confirmation message or error
+    def add_imports(import_statement: str) -> str:
+        """
+            Adds custom imports to the target system.
+                import_statement: A string containing import statements e.g. "from x import y"
         """
         try:
             target_system.add_imports(import_statement.strip())
@@ -88,19 +80,15 @@ def build_system():
             return f"Error adding import: {repr(e)}"
     
 
-    tools["AddImports"] = tool(runnable=addimports_function, name_or_callable="AddImports")
+    tools["AddImports"] = tool(runnable=add_imports, name_or_callable="AddImports")
 
     # Tool: SetStateAttributes
     # Description: Sets state attributes with type annotations for the target system
-    def setstateattributes_function(attributes: str) -> str:
-        """Set state attributes for the target system.
-    
-        Args:
-            attributes: A json string mapping attribute names to string type annotations
-            "{'messages': 'List[Any]'}" is the default an will be set automatically
-    
-        Returns:
-            Confirmation message or error
+    def set_state_attributes(attributes: Dict[str, str]) -> str:
+        """
+            Defines state attributed accessible throughout the system. Only defines the type annotations, not the values.
+                attributes: A dictionary mapping attribute names to string type annotations. 
+                {'messages': 'List[Any]'} is the default and will be set automatically.
         """
         try:
             attributes = json.loads(attributes)
@@ -110,20 +98,14 @@ def build_system():
             return f"Error setting state attributes: {repr(e)}"
     
 
-    tools["SetStateAttributes"] = tool(runnable=setstateattributes_function, name_or_callable="SetStateAttributes")
+    tools["SetStateAttributes"] = tool(runnable=set_state_attributes, name_or_callable="SetStateAttributes")
 
     # Tool: CreateNode
     # Description: Creates a node in the target system with custom function implementation
-    def createnode_function(name: str, description: str, function_code: str) -> str:
-        """Create a node in the target system.
-    
-        Args:
-            name: Name of the node
-            description: Brief description of the node's purpose
-            function_code: Python code defining the node's processing function
-    
-        Returns:
-            Confirmation message or error
+    def create_node(name: str, description: str, function_code: str) -> str:
+        """
+            Creates a node in the target system.
+                function_code: Python code defining the node's processing function
         """
         try:
             node_function = target_system.get_function(function_code)
@@ -134,20 +116,14 @@ def build_system():
             return f"Error creating node: {repr(e)}"
     
 
-    tools["CreateNode"] = tool(runnable=createnode_function, name_or_callable="CreateNode")
+    tools["CreateNode"] = tool(runnable=create_node, name_or_callable="CreateNode")
 
     # Tool: CreateTool
     # Description: Creates a tool in the target system that can be used by nodes
-    def createtool_function(name: str, description: str, function_code: str) -> str:
-        """Create a tool in the target system.
-    
-        Args:
-            name: Name of the tool
-            description: Description of what the tool does and how to use it
-            function_code: Python code defining the tool's function including type annotations and a docstring
-    
-        Returns:
-            Confirmation message or error
+    def create_tool(name: str, description: str, function_code: str) -> str:
+        """
+            Creates a tool in the target system that can be bound to agents and invoked by functions.
+                function_code: Python code defining the tool's function including type annotations and a clear docstring
         """
         try:
             tool_function = target_system.get_function(function_code)
@@ -158,21 +134,16 @@ def build_system():
             return f"Error creating tool: {repr(e)}"
     
 
-    tools["CreateTool"] = tool(runnable=createtool_function, name_or_callable="CreateTool")
+    tools["CreateTool"] = tool(runnable=create_tool, name_or_callable="CreateTool")
 
     # Tool: EditComponent
     # Description: Edits a node or tool's implementation
-    def editcomponent_function(component_type: str, name: str, new_function_code: str, new_description: Optional[str] = None) -> str:
-        """Edit a node or tool's implementation.
-    
-        Args:
-            component_type: Type of component to edit ('node' or 'tool')
-            name: Name of the component to edit
-            new_function_code: New Python code for the component's function
-            new_description: New description for the component
-    
-        Returns:
-            Confirmation message or error
+    def edit_component(component_type: str, name: str, new_function_code: str, new_description: Optional[str] = None) -> str:
+        """
+            Modifies an existing node or tool's implementation by providing a new_function_code. This does not allow renaming.
+                component_type: Type of component to edit ('node' or 'tool')
+                name: Name of the component to edit
+                new_function_code: New Python code for the component's function
         """
         try:
             if component_type.lower() not in ["node", "tool"]:
@@ -201,19 +172,15 @@ def build_system():
             return f"Error editing {component_type}: {repr(e)}"
     
 
-    tools["EditComponent"] = tool(runnable=editcomponent_function, name_or_callable="EditComponent")
+    tools["EditComponent"] = tool(runnable=edit_component, name_or_callable="EditComponent")
 
     # Tool: AddEdge
     # Description: Adds an edge between nodes in the target system
-    def addedge_function(source: str, target: str) -> str:
-        """Add an edge between nodes in the target system.
-    
-        Args:
-            source: Name of the source node
-            target: Name of the target node
-    
-        Returns:
-            Confirmation message or error
+    def add_edge(source: str, target: str) -> str:
+        """
+            Adds an edge between nodes in the target system.
+                source: Name of the source node
+                target: Name of the target node
         """
         try:
             target_system.create_edge(source, target)
@@ -222,24 +189,20 @@ def build_system():
             return f"Error adding edge: {repr(e)}"
     
 
-    tools["AddEdge"] = tool(runnable=addedge_function, name_or_callable="AddEdge")
+    tools["AddEdge"] = tool(runnable=add_edge, name_or_callable="AddEdge")
 
     # Tool: AddConditionalEdge
     # Description: Adds a conditional edge in the target system.
-    def addconditionaledge_function(source: str, condition_code: str) -> str:
-        """Add a conditional edge in the target system.
-    
-        Args:
-            source: Name of the source node
-            condition_code: Python code for the condition function
-    
-        Returns:
-            Confirmation message or error
+    def add_conditional_edge(source: str, condition_code: str) -> str:
+        """
+            Adds a conditional edge from a source node.
+                source: Name of the source node
+                condition_code: Python code for the condition function that returns the target node
         """
         try:
             condition_function = target_system.get_function(condition_code)
     
-            # Extract potential node names from string literals in the code
+            # Extract potential node names from string literals in the code (better visualization)
             string_pattern = r"['\"]([^'\"]*)['\"]"
             potential_nodes = set(re.findall(string_pattern, condition_code))
     
@@ -249,7 +212,6 @@ def build_system():
                 if node_name in target_system.nodes:
                     auto_path_map[node_name] = node_name
     
-            # only for better visualization
             if auto_path_map:
                 path_map = auto_path_map
     
@@ -269,19 +231,15 @@ def build_system():
             return f"Error adding conditional edge: {repr(e)}"
     
 
-    tools["AddConditionalEdge"] = tool(runnable=addconditionaledge_function, name_or_callable="AddConditionalEdge")
+    tools["AddConditionalEdge"] = tool(runnable=add_conditional_edge, name_or_callable="AddConditionalEdge")
 
     # Tool: SetEndpoints
     # Description: Sets the entry point and/or finish point of the workflow
-    def setendpoints_function(entry_point: str = None, finish_point: str = None) -> str:
-        """Set the entry point (start node) and/or finish point (end node) of the workflow.
-    
-        Args:
-            entry_point: Name of the node to set as entry point
-            finish_point: Name of the node to set as finish point
-    
-        Returns:
-            Confirmation message or error
+    def set_endpoints(entry_point: str = None, finish_point: str = None) -> str:
+        """
+            Sets the entry point (start node) and/or finish point (end node) of the workflow.
+                entry_point: Name of the node to set as entry point
+                finish_point: Name of the node to set as finish point
         """
         results = []
     
@@ -305,18 +263,14 @@ def build_system():
         return "\n".join(results)
     
 
-    tools["SetEndpoints"] = tool(runnable=setendpoints_function, name_or_callable="SetEndpoints")
+    tools["SetEndpoints"] = tool(runnable=set_endpoints, name_or_callable="SetEndpoints")
 
     # Tool: TestSystem
     # Description: Tests the target system with a given state
-    def testsystem_function(state: str) -> str:
-        """Test the target system with an input state, streaming all intermediate messages.
-    
-        Args:
-            state: A json string with state attributes e.g. "{'messages': ['Test Input'], 'attr2': [3, 5]}"
-    
-        Returns:
-            Test results along with intermediate outputs and any error messages encountered.
+    def test_system(state: Dict[str, Any]) -> str:
+        """
+            Executes the current system with a test input state to validate functionality.
+                state: A python dictionary with state attributes e.g. {'messages': ['Test Input'], 'attr2': [3, 5]}
         """
         all_outputs = []
         error_message = ""
@@ -354,18 +308,14 @@ def build_system():
         return final_output
     
 
-    tools["TestSystem"] = tool(runnable=testsystem_function, name_or_callable="TestSystem")
+    tools["TestSystem"] = tool(runnable=test_system, name_or_callable="TestSystem")
 
     # Tool: DeleteNode
     # Description: Deletes a node and all its associated edges from the target system
-    def deletenode_function(node_name: str) -> str:
-        """Delete a node and all its associated edges.
-    
-        Args:
-            node_name: Name of the node to delete
-    
-        Returns:
-            Confirmation message or error
+    def delete_node(node_name: str) -> str:
+        """
+            Deletes a node and all its associated edges.
+                node_name: Name of the node to delete
         """
         try:
             result = target_system.delete_node(node_name)
@@ -374,19 +324,15 @@ def build_system():
             return f"Error deleting node: {repr(e)}"
     
 
-    tools["DeleteNode"] = tool(runnable=deletenode_function, name_or_callable="DeleteNode")
+    tools["DeleteNode"] = tool(runnable=delete_node, name_or_callable="DeleteNode")
 
     # Tool: DeleteEdge
     # Description: Deletes an edge between nodes in the target system
-    def deleteedge_function(source: str, target: str) -> str:
-        """Delete an edge between nodes.
-    
-        Args:
-            source: Name of the source node
-            target: Name of the target node
-    
-        Returns:
-            Confirmation message or error
+    def delete_edge(source: str, target: str) -> str:
+        """
+            Deletes an edge between nodes.
+                source: Name of the source node
+                target: Name of the target node
         """
         try:
             result = target_system.delete_edge(source, target)
@@ -395,18 +341,14 @@ def build_system():
             return f"Error deleting edge: {repr(e)}"
     
 
-    tools["DeleteEdge"] = tool(runnable=deleteedge_function, name_or_callable="DeleteEdge")
+    tools["DeleteEdge"] = tool(runnable=delete_edge, name_or_callable="DeleteEdge")
 
     # Tool: DeleteConditionalEdge
     # Description: Deletes a conditional edge from a source node
-    def deleteconditionaledge_function(source: str) -> str:
-        """Delete a conditional edge from a source node.
-    
-        Args:
-            source: Name of the source node
-    
-        Returns:
-            Confirmation message or error
+    def delete_conditional_edge(source: str) -> str:
+        """
+            Deletes a conditional edge from a source node.
+                source: Name of the source node
         """
         try:
             result = target_system.delete_conditional_edge(source)
@@ -415,15 +357,13 @@ def build_system():
             return f"Error deleting conditional edge: {repr(e)}"
     
 
-    tools["DeleteConditionalEdge"] = tool(runnable=deleteconditionaledge_function, name_or_callable="DeleteConditionalEdge")
+    tools["DeleteConditionalEdge"] = tool(runnable=delete_conditional_edge, name_or_callable="DeleteConditionalEdge")
 
     # Tool: EndDesign
     # Description: Finalizes the system design process
-    def enddesign_function() -> str:
-        """Finalize the system design process.
-    
-        Returns:
-            Status message
+    def end_design() -> str:
+        """
+            Finalizes the system design process.
         """
         try:
             if not (target_system.entry_point and target_system.finish_point):
@@ -444,78 +384,107 @@ def build_system():
             return f"Error finalizing system: {repr(e)}"
     
 
-    tools["EndDesign"] = tool(runnable=enddesign_function, name_or_callable="EndDesign")
+    tools["EndDesign"] = tool(runnable=end_design, name_or_callable="EndDesign")
 
     # Register tools with LargeLanguageModel class
     LargeLanguageModel.register_available_tools(tools)
     # ===== Node Definitions =====
-    # Node: MetaThinker
-    # Description: Meta Thinker Agent
-    def metathinker_function(state: Dict[str, Any]) -> Dict[str, Any]:
+    # Node: MetaAgent
+    # Description: Meta Agent
+    def meta_agent_function(state: Dict[str, Any]) -> Dict[str, Any]:
         llm = LargeLanguageModel(temperature=0.4, model_name="gemini-2.0-flash", wrapper="google")
+        context_length = 6*2 # even
         messages = state.get("messages", [])
         initial_message, current_messages = messages[0], messages[1:]
-        last_messages = current_messages[-3:] if len(current_messages) >= 3 else current_messages
+        last_messages = current_messages[-context_length:] if len(current_messages) >= context_length else current_messages
     
         code_message = "Current Code:\n" + materialize_system(target_system, output_dir=None)
     
-        full_messages = [SystemMessage(content=system_prompts.meta_thinker), initial_message] + last_messages + [HumanMessage(content=code_message)]
+        full_messages = [SystemMessage(content=system_prompts.meta_agent), initial_message] + last_messages + [HumanMessage(content=code_message)]
         response = llm.invoke(full_messages)
-        return {"messages": messages + [response]}
+    
+        # Extract tool calls
+        response_content = response.content
+    
+        # Check for tool calls and execute them
+        design_completed = False
+        tool_results = []
+    
+        # Find all tool calls
+        tool_calls_pattern = r"```tool_calls\n(.*?)```"
+        tool_calls_matches = re.findall(tool_calls_pattern, response_content, re.DOTALL)
+    
+        # Define the available tools in a namespace
+        tools_namespace = {
+            "set_state_attributes": set_state_attributes,
+            "pip_install": pip_install,
+            "add_imports": add_imports,
+            "create_node": create_node,
+            "create_tool": create_tool,
+            "edit_component": edit_component,
+            "add_edge": add_edge,
+            "add_conditional_edge": add_conditional_edge,
+            "delete_conditional_edge": delete_conditional_edge,
+            "set_endpoints": set_endpoints,
+            "test_system": test_system,
+            "delete_node": delete_node,
+            "delete_edge": delete_edge,
+            "end_design": end_design
+        }
+    
+        for tool_call in tool_calls_matches:
+            try:
+                # Execute the tool call
+                local_namespace = dict(tools_namespace)
+                exec(tool_call, globals(), local_namespace)
+    
+                # Check if end_design was called
+                if "end_design(" in tool_call:
+                    design_completed = True
+    
+                tool_results.append(f"Tool call executed successfully: {tool_call.strip()}")
+            except Exception as e:
+                error_message = f"Error executing tool call: {repr(e)}\nTool call: {tool_call}"
+                tool_results.append(error_message)
+                break
+    
+        if tool_results:
+            tool_output = "\n\n".join(tool_results)
+            tool_response = f"\n\nTool Execution Results:\n{tool_output}"
+    
+            # Create a new message with tool execution results
+            tool_message = HumanMessage(content=tool_response)
+            updated_messages = messages + [response, tool_message]
+        else:
+            updated_messages = messages + [response]
+    
+        new_state = {"messages": updated_messages, "design_completed": design_completed}
+        return new_state
     
 
-    graph.add_node("MetaThinker", metathinker_function)
-
-    # Node: MetaExecutor
-    # Description: Meta Executor Agent
-    def metaexecutor_function(state: Dict[str, Any]) -> Dict[str, Any]:
-        llm = LargeLanguageModel(temperature=0.4)
-    
-        llm.bind_tools([
-            "SetStateAttributes", "PipInstall", "AddImports", "CreateNode", 
-            "CreateTool", "EditComponent", "AddEdge", "AddConditionalEdge", 
-            "DeleteConditionalEdge", "SetEndpoints", 
-            "TestSystem", "DeleteNode", "DeleteEdge", "EndDesign"
-        ], parallel_tool_calls=False)
-    
-        messages = state.get("messages", [])
-        # append only the last message
-        full_messages = [SystemMessage(content=system_prompts.meta_executor), messages[-1]]
-    
-        response = llm.invoke(full_messages)
-        tool_messages, tool_results = execute_tool_calls(response)
-    
-        return {"messages": messages + [response] + tool_messages}
-    
-
-    graph.add_node("MetaExecutor", metaexecutor_function)
+    graph.add_node("MetaAgent", meta_agent_function)
 
     # Node: EndDesign
     # Description: Terminal node for workflow completion
-    def enddesign_function(state: Dict[str, Any]) -> Dict[str, Any]:
+    def end_design_node(state: Dict[str, Any]) -> Dict[str, Any]:
         return state
     
 
-    graph.add_node("EndDesign", enddesign_function)
-
-    # ===== Standard Edges =====
-    graph.add_edge("MetaThinker", "MetaExecutor")
+    graph.add_node("EndDesign", end_design_node)
 
     # ===== Conditional Edges =====
-    # Conditional Router from: MetaExecutor
-    def metaexecutor_router(state: Dict[str, Any]) -> str:
-        """Routes to EndDesign if that tool was called, otherwise back to MetaThinker."""
-        messages = state.get("messages", [])
-        for message in reversed(messages):
-            if getattr(message, "type", None) == "tool" and getattr(message, "name", None) == "EndDesign":
-                return "EndDesign"
-        return "MetaThinker"
+    # Conditional Router from: MetaAgent
+    def design_completed_router(state: Dict[str, Any]) -> str:
+        """Routes to EndDesign if design is completed, otherwise back to MetaAgent."""
+        if state.get("design_completed", False):
+            return "EndDesign"
+        return "MetaAgent"
     
 
-    graph.add_conditional_edges("MetaExecutor", metaexecutor_router, {'MetaThinker': 'MetaThinker', 'EndDesign': 'EndDesign'})
+    graph.add_conditional_edges("MetaAgent", design_completed_router, {'MetaAgent': 'MetaAgent', 'EndDesign': 'EndDesign'})
 
     # ===== Entry/Exit Configuration =====
-    graph.set_entry_point("MetaThinker")
+    graph.set_entry_point("MetaAgent")
     graph.set_finish_point("EndDesign")
 
     # ===== Compilation =====

@@ -1,10 +1,6 @@
-# SimpleEulerSolver System Configuration
-# Total nodes: 1
-# Total tools: 1
-
+# Imports
 from langgraph.graph import StateGraph
 from langchain_core.tools import tool
-import os
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage
 from typing import Dict, List, Any, Callable, Optional, Union, TypeVar, Generic, Tuple, Set, TypedDict
 from agentic_system.large_language_model import LargeLanguageModel, execute_tool_calls
@@ -14,90 +10,94 @@ def build_system():
     # Define state attributes for the system
     class AgentState(TypedDict):
         messages: List[Any]
-        input: str
 
     # Initialize graph with state
     graph = StateGraph(AgentState)
 
-    # Tool definitions
-    # ===== Tool Definitions =====
     tools = {}
-    # Tool: ExecutePythonCode
-    # Description: Executes given Python code and returns the output or an error message if execution fails.
-    def executepythoncode_function(code: str) -> str:
+    # ===== Tool Definitions =====
+    # No tools defined yet
+    
+    def execute_python_code(code: str) -> str:
         '''Executes the given Python code and returns the output.
-    
-        Args:
-            code (str): The Python code to execute.
-    
-        Returns:
-            str: The output of the executed code, or an error message if execution fails.
+        
+        The input is a string containing the Python code to execute.
+        The output is a string containing the stdout and stderr of the execution.
         '''
+        import subprocess
+        import sys
+
         try:
-            import io, sys
-            from contextlib import redirect_stdout
-    
-            # Redirect stdout to capture the output
-            f = io.StringIO()
-            with redirect_stdout(f):
-                # Execute the code
-                exec(code)
-            output = f.getvalue()
-            return output
+            process = subprocess.Popen(
+                [sys.executable, '-c', code],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            stdout, stderr = process.communicate()
+            if stderr:
+                return "Error: " + stderr
+            return stdout
         except Exception as e:
-            return str(e)
+            return "Exception: " + str(e)
 
-    tools["ExecutePythonCode"] = tool(runnable=executepythoncode_function, name_or_callable="ExecutePythonCode")
-
-    # Register tools with LargeLanguageModel class
+    tools["execute_python_code"] = tool(runnable=execute_python_code, name_or_callable="execute_python_code")
+    # Register all tools with LargeLanguageModel class
     LargeLanguageModel.register_available_tools(tools)
+
     # ===== Node Definitions =====
-    # Node: AgentNode
-    # Description: An agent that solves Project Euler problems by generating and executing Python code.
-    def agentnode_function(state):
+    def agent_node(state):
         llm = LargeLanguageModel(temperature=0.0)
-        system_prompt = """You are an expert Python programmer and mathematician. Your goal is to solve Project Euler problems. You will be given a problem description as input. You must generate Python code that solves the problem and then execute the code using the ExecutePythonCode tool. You should first briefly explain your approach, and then present only the final answer, without further explanation.
-    
+        system_prompt = """You are an expert Python programmer specialized in solving Project Euler problems.
+        You will be given a problem description and your task is to write Python code to solve it.
+        You have access to an execution tool that allows you to run Python code and get the output.
+        Use the execution tool to run your code and verify the solution.
+        Once you are confident that the solution is correct, return the final answer.
+
         Here's how you should operate:
-        1. Understand the Problem: Carefully read and understand the problem statement.
-        2. Plan your Solution: Break down the problem into smaller, manageable steps.
-        3. Explain your Approach: Briefly describe your plan to solve the problem *before* generating any code.
-        4. Generate Python Code: Write Python code to implement your solution. Ensure the code is correct, efficient, and well-formatted.
-        5. Execute the Code: Use the ExecutePythonCode tool to run your code.
-        6. Analyze the Results: Check the output of the code execution. If there are errors, debug your code and re-execute it.
-        7. Present the Answer: Once you have the correct answer, present it clearly and concisely. Present ONLY the final numerical answer.
-    
-        Example:
-        Problem: Find the sum of the digits in the number 100!
-        Solution:
-        First, I will calculate 100! using the math.factorial function. Then, I will convert the result to a string, iterate through the digits, convert them back to integers, and sum them up.
-        ```python
-        import math
-        number = math.factorial(100)
-        sum_digits = sum(int(digit) for digit in str(number))
-        print(sum_digits)
-        ```
+        1.  Understand the problem thoroughly.
+        2.  Write Python code to solve the problem.
+        3.  Use the `execute_python_code` tool to run the code and get the output.
+        4.  If the output is incorrect or contains errors, revise the code and rerun it.
+        5.  Repeat steps 3 and 4 until you are confident that the solution is correct.
+        6.  Return the final answer.
         """
-    
-        llm = llm.bind_tools(["ExecutePythonCode"])
-    
+        llm = llm.bind_tools(["execute_python_code"])
+
         messages = state.get("messages", [])
-        input_problem = state.get("input", "")
-        messages.append(HumanMessage(content=input_problem))
         full_messages = [SystemMessage(content=system_prompt)] + messages
         response = llm.invoke(full_messages)
+
         tool_messages, tool_results = execute_tool_calls(response)
-    
+
         new_state = {"messages": messages + [response] + tool_messages}
-    
+
         return new_state
-    
 
-    graph.add_node("AgentNode", agentnode_function)
+    graph.add_node("EulerAgent", agent_node)
 
+    def error_handler_node(state):
+        # This node handles errors and decides whether to retry or finish
+        messages = state.get("messages", [])
+        last_message = str(messages[-1])
+        if "Error" in last_message or "Exception" in last_message:
+           return "EulerAgent"
+        else:
+            # If no error, proceed to finish
+            return "Finish"
+    graph.add_node("ErrorHandler", error_handler_node)
+
+    def finish_node(state):
+        return state
+
+    graph.add_node("Finish", finish_node)
     # ===== Entry/Exit Configuration =====
-    graph.set_entry_point("AgentNode")
-    graph.set_finish_point("AgentNode")
+    graph.set_entry_point("EulerAgent")
+
+    # ===== Edge Configuration =====
+    graph.add_conditional_edges("EulerAgent", error_handler_node)
+    graph.set_finish_point("Finish")
+
 
     # ===== Compilation =====
     workflow = graph.compile()

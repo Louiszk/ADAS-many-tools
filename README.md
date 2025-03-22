@@ -2,8 +2,6 @@
 
 First version with multiple tools in a loop
 
-![MetaSystem](systems/MetaSystem.png)
-
 ## Quick Setup
 
 ### Environment Setup

@@ -55,8 +55,11 @@ def main():
                         last_msg = messages[-1]
                         msg_type = getattr(last_msg, 'type', 'Unknown')
                         content = getattr(last_msg, 'content', '')
-                        tool_calls = getattr(last_msg, 'tool_calls', '')
-                        print(f"\n[{msg_type}]: {content}\n {tool_calls}")
+                        print(f"\n[{msg_type}]: {content}\n")
+                
+                if "design_completed" in out and out["design_completed"]:
+                    print("Design completed.")
+            
             time.sleep(2)
        
     except Exception as e:
