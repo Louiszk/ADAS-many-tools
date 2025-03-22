@@ -1,6 +1,5 @@
 import os
 import argparse
-from meta_system import create_meta_system
 from sandbox.sandbox import StreamingSandboxSession, setup_sandbox_environment, check_docker_running
 
 def run_meta_system_in_sandbox(session, problem_statement, target_name, optimize_system=None):
@@ -44,19 +43,12 @@ def main():
     parser = argparse.ArgumentParser(description="Run agentic systems in a sandboxed environment")
     parser.add_argument("--no-keep-template", dest="keep_template", action="store_false", help="Don't keep the Docker image after the session is closed")
     parser.add_argument("--reinstall", action="store_true", help="Reinstall dependencies.")
-    parser.add_argument("--materialize", action="store_true", help="Materialize meta system")
     parser.add_argument("--problem", default=prompt, help="Problem statement to solve")
     parser.add_argument("--name", default=target_name, help="Target system name")
     parser.add_argument("--optimize-system", default=None, help="Specify target system name to optimize or change")
     
     args = parser.parse_args()
     print(args)
-    
-    if args.materialize:
-        create_meta_system()
-    elif not os.path.exists("systems/MetaSystem.py"):
-        print("Error: MetaSystem.py not found and --skip-materialize is set")
-        return
     
     if not check_docker_running():
         return
