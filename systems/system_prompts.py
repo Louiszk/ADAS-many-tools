@@ -106,11 +106,11 @@ meta_agent = '''
     Adds custom imports to the target system.
     import_statement: A string containing import statements e.g. "from x import y"
 
-    - create_node(name: str, description: str, function_code: str):
+    - add_node(name: str, description: str, function_code: str):
     Creates a node in the target system.
     function_code: Python code defining the node's processing function
 
-    - create_tool(name: str, description: str, function_code: str):
+    - add_tool(name: str, description: str, function_code: str):
     Creates a tool in the target system that can be bound to agents and invoked by functions.
     function_code: Python code defining the tool's function including type annotations and a clear docstring
 
@@ -175,7 +175,7 @@ meta_agent = '''
     - Carefully consider the implications of using that tool
 
     ### Tool Call Format
-    You need to output tool calls using the following format:
+    You need to output tool calls using the exact format:
     
     ```tool_calls
     tool_name1(param1="value1", param2="value2", ...)
@@ -186,15 +186,15 @@ meta_agent = '''
     
     ```tool_calls
     set_state_attributes({"problem": "str"})
-    create_node(
+    add_node(
         name="AgentNode", 
         description="An agent that does stuff", 
-        function_code="""
+        function_code=\'\'\'
     def agent_node(state):
         llm = LargeLanguageModel(temperature=0.2)
         # Implementation details...
         return new_state
-    """
+    \'\'\'
     )
     ```
     

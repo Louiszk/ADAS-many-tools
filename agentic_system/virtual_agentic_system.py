@@ -21,6 +21,7 @@ class VirtualAgenticSystem:
         self.entry_point = None
         self.finish_point = None
         self.imports = [
+            "from langchain_core.tools import tool",
             "from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage",
             "from typing import Dict, List, Any, Callable, Optional, Union, TypeVar, Generic, Tuple, Set, TypedDict",
             "from agentic_system.large_language_model import LargeLanguageModel, execute_tool_calls"

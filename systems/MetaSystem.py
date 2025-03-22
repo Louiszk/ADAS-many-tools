@@ -3,8 +3,8 @@
 # Total tools: 14
 
 from langgraph.graph import StateGraph
-from langchain_core.tools import tool
 import os
+from langchain_core.tools import tool
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage
 from typing import Dict, List, Any, Callable, Optional, Union, TypeVar, Generic, Tuple, Set, TypedDict
 from agentic_system.large_language_model import LargeLanguageModel, execute_tool_calls
@@ -13,6 +13,8 @@ from tqdm import tqdm
 import traceback
 import dill as pickle
 import re
+import io
+import contextlib
 import sys
 import subprocess
 from systems import system_prompts
@@ -44,7 +46,8 @@ def build_system():
         valid_pattern = r'^[a-zA-Z0-9._-]+(\s*[=<>!]=\s*[0-9a-zA-Z.]+)?$'
     
         if not re.match(valid_pattern, package_name):
-            return f"Error: Invalid package name format. Package name '{package_name}' contains invalid characters."
+            print(f"Error: Invalid package name format. Package name '{package_name}' contains invalid characters.")
+            return None
     
         try:
             process = subprocess.run(
@@ -56,12 +59,12 @@ def build_system():
             )
     
             if process.returncode == 0:
-                return f"Successfully installed {package_name}"
+                print(f"Successfully installed {package_name}")
             else:
-                return f"Error installing {package_name}:\n{process.stdout}"
+                print(f"Error installing {package_name}:\n{process.stdout}")
     
         except Exception as e:
-            return f"Installation failed: {str(e)}"
+            print(f"Installation failed: {str(e)}")
     
 
     tools["PipInstall"] = tool(runnable=pip_install, name_or_callable="PipInstall")
@@ -75,9 +78,9 @@ def build_system():
         """
         try:
             target_system.add_imports(import_statement.strip())
-            return f"Import statement '{import_statement}' added to target system."
+            print(f"Import statement '{import_statement}' added to target system.")
         except Exception as e:
-            return f"Error adding import: {repr(e)}"
+            print(f"Error adding import: {repr(e)}")
     
 
     tools["AddImports"] = tool(runnable=add_imports, name_or_callable="AddImports")
@@ -91,18 +94,17 @@ def build_system():
                 {'messages': 'List[Any]'} is the default and will be set automatically.
         """
         try:
-            attributes = json.loads(attributes)
             target_system.set_state_attributes(attributes)
-            return f"State attributes set successfully: {attributes}"
+            print(f"State attributes set successfully: {attributes}")
         except Exception as e:
-            return f"Error setting state attributes: {repr(e)}"
+            print(f"Error setting state attributes: {repr(e)}")
     
 
     tools["SetStateAttributes"] = tool(runnable=set_state_attributes, name_or_callable="SetStateAttributes")
 
     # Tool: CreateNode
     # Description: Creates a node in the target system with custom function implementation
-    def create_node(name: str, description: str, function_code: str) -> str:
+    def add_node(name: str, description: str, function_code: str) -> str:
         """
             Creates a node in the target system.
                 function_code: Python code defining the node's processing function
@@ -111,16 +113,16 @@ def build_system():
             node_function = target_system.get_function(function_code)
     
             target_system.create_node(name, node_function, description, function_code)
-            return f"Node '{name}' created successfully"
+            print(f"Node '{name}' created successfully")
         except Exception as e:
-            return f"Error creating node: {repr(e)}"
+            print(f"Error creating node: {repr(e)}")
     
 
-    tools["CreateNode"] = tool(runnable=create_node, name_or_callable="CreateNode")
+    tools["CreateNode"] = tool(runnable=add_node, name_or_callable="CreateNode")
 
     # Tool: CreateTool
     # Description: Creates a tool in the target system that can be used by nodes
-    def create_tool(name: str, description: str, function_code: str) -> str:
+    def add_tool(name: str, description: str, function_code: str) -> str:
         """
             Creates a tool in the target system that can be bound to agents and invoked by functions.
                 function_code: Python code defining the tool's function including type annotations and a clear docstring
@@ -129,12 +131,12 @@ def build_system():
             tool_function = target_system.get_function(function_code)
     
             target_system.create_tool(name, description, tool_function, function_code)
-            return f"Tool '{name}' created successfully"
+            print(f"Tool '{name}' created successfully")
         except Exception as e:
-            return f"Error creating tool: {repr(e)}"
+            print(f"Error creating tool: {repr(e)}")
     
 
-    tools["CreateTool"] = tool(runnable=create_tool, name_or_callable="CreateTool")
+    tools["CreateTool"] = tool(runnable=add_tool, name_or_callable="CreateTool")
 
     # Tool: EditComponent
     # Description: Edits a node or tool's implementation
@@ -147,29 +149,33 @@ def build_system():
         """
         try:
             if component_type.lower() not in ["node", "tool"]:
-                return f"Error: Invalid component type '{component_type}'. Must be 'node' or 'tool'."
+                print(f"Error: Invalid component type '{component_type}'. Must be 'node' or 'tool'.")
+                return None
     
             if name not in target_system.nodes and name not in target_system.tools:
-                return f"Error: '{name}' not found"
+                print(f"Error: '{name}' not found")
+                return None
     
             new_function = target_system.get_function(new_function_code)
     
             if component_type.lower() == "node":
                 if name not in target_system.nodes:
-                    return f"Error: Node '{name}' not found"
+                    print(f"Error: Node '{name}' not found")
+                    return None
     
                 target_system.edit_node(name, new_function, new_description, new_function_code)
-                return f"Node '{name}' updated successfully"
+                print(f"Node '{name}' updated successfully")
     
             else:
                 if name not in target_system.tools:
-                    return f"Error: Tool '{name}' not found"
+                    print(f"Error: Tool '{name}' not found")
+                    return None
     
                 target_system.edit_tool(name, new_function, new_description, new_function_code)
-                return f"Tool '{name}' updated successfully"
+                print(f"Tool '{name}' updated successfully")
     
         except Exception as e:
-            return f"Error editing {component_type}: {repr(e)}"
+            print(f"Error editing {component_type}: {repr(e)}")
     
 
     tools["EditComponent"] = tool(runnable=edit_component, name_or_callable="EditComponent")
@@ -184,9 +190,9 @@ def build_system():
         """
         try:
             target_system.create_edge(source, target)
-            return f"Edge from '{source}' to '{target}' added successfully"
+            print(f"Edge from '{source}' to '{target}' added successfully")
         except Exception as e:
-            return f"Error adding edge: {repr(e)}"
+            print(f"Error adding edge: {repr(e)}")
     
 
     tools["AddEdge"] = tool(runnable=add_edge, name_or_callable="AddEdge")
@@ -226,9 +232,9 @@ def build_system():
             if path_map:
                 result += f" with path map to {list(path_map.values())}"
     
-            return result
+            print(result)
         except Exception as e:
-            return f"Error adding conditional edge: {repr(e)}"
+            print(f"Error adding conditional edge: {repr(e)}")
     
 
     tools["AddConditionalEdge"] = tool(runnable=add_conditional_edge, name_or_callable="AddConditionalEdge")
@@ -258,9 +264,10 @@ def build_system():
                 results.append(f"Error setting finish point: {repr(e)}")
     
         if not results:
-            return "No endpoints were specified. Please provide entry_point and/or finish_point."
+            print("No endpoints were specified. Please provide entry_point and/or finish_point.")
+            return None
     
-        return "\n".join(results)
+        print("\n".join(results))
     
 
     tools["SetEndpoints"] = tool(runnable=set_endpoints, name_or_callable="SetEndpoints")
@@ -274,20 +281,22 @@ def build_system():
         """
         all_outputs = []
         error_message = ""
-        state = json.loads(state)
     
         try:
             if not (target_system.entry_point and target_system.finish_point):
-                return "Error testing system: You must set an entry point and finish point before testing"
+                print("Error testing system: You must set an entry point and finish point before testing")
+                return None
     
             source_code = materialize_system(target_system, None)
             namespace = {}
             exec(source_code, namespace, namespace)
     
             if 'build_system' not in namespace:
-                return "Error: Could not find build_system function in generated code"
+                print("Error: Could not find build_system function in generated code")
+                return None
     
             target_workflow, _ = namespace['build_system']()
+            print("Testing System...")
             pbar = tqdm()
     
             for output in target_workflow.stream(state):
@@ -304,8 +313,7 @@ def build_system():
     
         test_result = f"Test completed.\n <TestResults>\n{result}\n</TestResults>"
     
-        final_output = test_result + error_message
-        return final_output
+        print(test_result + error_message)
     
 
     tools["TestSystem"] = tool(runnable=test_system, name_or_callable="TestSystem")
@@ -319,9 +327,9 @@ def build_system():
         """
         try:
             result = target_system.delete_node(node_name)
-            return f"Node '{node_name}' deleted successfully" if result else f"Failed to delete node '{node_name}'"
+            print(f"Node '{node_name}' deleted successfully" if result else f"Failed to delete node '{node_name}'")
         except Exception as e:
-            return f"Error deleting node: {repr(e)}"
+            print(f"Error deleting node: {repr(e)}")
     
 
     tools["DeleteNode"] = tool(runnable=delete_node, name_or_callable="DeleteNode")
@@ -336,9 +344,9 @@ def build_system():
         """
         try:
             result = target_system.delete_edge(source, target)
-            return f"Edge from '{source}' to '{target}' deleted successfully" if result else f"No such edge from '{source}' to '{target}'"
+            print(f"Edge from '{source}' to '{target}' deleted successfully" if result else f"No such edge from '{source}' to '{target}'")
         except Exception as e:
-            return f"Error deleting edge: {repr(e)}"
+            print(f"Error deleting edge: {repr(e)}")
     
 
     tools["DeleteEdge"] = tool(runnable=delete_edge, name_or_callable="DeleteEdge")
@@ -352,9 +360,9 @@ def build_system():
         """
         try:
             result = target_system.delete_conditional_edge(source)
-            return f"Conditional edge from '{source}' deleted successfully" if result else f"No conditional edge found from '{source}'"
+            print(f"Conditional edge from '{source}' deleted successfully" if result else f"No conditional edge found from '{source}'")
         except Exception as e:
-            return f"Error deleting conditional edge: {repr(e)}"
+            print(f"Error deleting conditional edge: {repr(e)}")
     
 
     tools["DeleteConditionalEdge"] = tool(runnable=delete_conditional_edge, name_or_callable="DeleteConditionalEdge")
@@ -367,7 +375,8 @@ def build_system():
         """
         try:
             if not (target_system.entry_point and target_system.finish_point):
-                return "Error finalizing system: You must set an entry point and finish point before finalizing"
+                print("Error finalizing system: You must set an entry point and finish point before finalizing")
+                return None
     
             code_dir = "sandbox/workspace/automated_systems"
             materialize_system(target_system, code_dir)
@@ -379,9 +388,9 @@ def build_system():
                 pickle.dump(target_system, f)
             print(f"System pickled to {pickle_path}")
     
-            return "Design process completed successfully."
+            print("Design process completed successfully.")
         except Exception as e:
-            return f"Error finalizing system: {repr(e)}"
+            print(f"Error finalizing system: {repr(e)}")
     
 
     tools["EndDesign"] = tool(runnable=end_design, name_or_callable="EndDesign")
@@ -391,8 +400,8 @@ def build_system():
     # ===== Node Definitions =====
     # Node: MetaAgent
     # Description: Meta Agent
-    def meta_agent_function(state: Dict[str, Any]) -> Dict[str, Any]:
-        llm = LargeLanguageModel(temperature=0.4, model_name="gemini-2.0-flash", wrapper="google")
+    def meta_agent_function(state: Dict[str, Any]) -> Dict[str, Any]:  
+        llm = LargeLanguageModel(temperature=0.4, model_name="10 Mistral-Nemo-Instruct-2407 - New Mistral Nemo - give it a try", wrapper="blablador")
         context_length = 6*2 # even
         messages = state.get("messages", [])
         initial_message, current_messages = messages[0], messages[1:]
@@ -419,8 +428,8 @@ def build_system():
             "set_state_attributes": set_state_attributes,
             "pip_install": pip_install,
             "add_imports": add_imports,
-            "create_node": create_node,
-            "create_tool": create_tool,
+            "add_node": add_node,
+            "add_tool": add_tool,
             "edit_component": edit_component,
             "add_edge": add_edge,
             "add_conditional_edge": add_conditional_edge,
@@ -434,17 +443,27 @@ def build_system():
     
         for tool_call in tool_calls_matches:
             try:
-                # Execute the tool call
-                local_namespace = dict(tools_namespace)
-                exec(tool_call, globals(), local_namespace)
+                # Capture stdout to get tool execution results
+                string_io = io.StringIO()
+                with contextlib.redirect_stdout(string_io):
+                    local_namespace = dict(tools_namespace)
     
-                # Check if end_design was called
-                if "end_design(" in tool_call:
+                    # somehow it adds one leading space
+                    cleaned_tool_call = '\n'.join(
+                        line[1:] if line.startswith(' ') else line 
+                        for line in tool_call.split('\n')
+                    )
+    
+                    exec(cleaned_tool_call, globals(), local_namespace)
+    
+                output = string_io.getvalue().strip()
+    
+                if "Design process completed" in output:
                     design_completed = True
     
-                tool_results.append(f"Tool call executed successfully: {tool_call.strip()}")
+                tool_results.append(output or "Tool call executed successfully.")
             except Exception as e:
-                error_message = f"Error executing tool call: {repr(e)}\nTool call: {tool_call}"
+                error_message = f"Error executing tool call: {repr(e)}"
                 tool_results.append(error_message)
                 break
     
@@ -452,7 +471,6 @@ def build_system():
             tool_output = "\n\n".join(tool_results)
             tool_response = f"\n\nTool Execution Results:\n{tool_output}"
     
-            # Create a new message with tool execution results
             tool_message = HumanMessage(content=tool_response)
             updated_messages = messages + [response, tool_message]
         else:

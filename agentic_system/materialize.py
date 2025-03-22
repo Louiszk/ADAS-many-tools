@@ -49,7 +49,6 @@ def materialize_system(system, output_dir="systems"):
         f"# Total tools: {tool_count}",
         "",
         "from langgraph.graph import StateGraph",
-        "from langchain_core.tools import tool",
         "import os"
     ]
     

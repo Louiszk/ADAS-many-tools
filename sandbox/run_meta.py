@@ -46,16 +46,15 @@ def main():
        
         print("Streaming meta system execution...")
         for output in workflow.stream(inputs, config={"recursion_limit": 80}):
-            print(list(output.keys()))
-           
             for out in output.values():
                 if "messages" in out:
                     messages = out["messages"]
                     if messages:
-                        last_msg = messages[-1]
-                        msg_type = getattr(last_msg, 'type', 'Unknown')
-                        content = getattr(last_msg, 'content', '')
-                        print(f"\n[{msg_type}]: {content}\n")
+                        last_msgs = messages[-2:]
+                        for last_msg in last_msgs:
+                            msg_type = getattr(last_msg, 'type', 'Unknown')
+                            content = getattr(last_msg, 'content', '')
+                            print(f"\n[{msg_type}]: {content}\n")
                 
                 if "design_completed" in out and out["design_completed"]:
                     print("Design completed.")

@@ -7,6 +7,8 @@ import dill as pickle
 import inspect
 from tqdm import tqdm
 import subprocess
+import io
+import contextlib
 from typing import Dict, List, Any, Optional, Union
 from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
 from agentic_system.large_language_model import LargeLanguageModel
@@ -28,6 +30,8 @@ def create_meta_system():
     meta_system.add_imports("import traceback")
     meta_system.add_imports("import dill as pickle")
     meta_system.add_imports("import re")
+    meta_system.add_imports("import io")
+    meta_system.add_imports("import contextlib")
     meta_system.add_imports("import sys")
     meta_system.add_imports("import subprocess")
     meta_system.add_imports("from systems import system_prompts")
@@ -46,7 +50,8 @@ def create_meta_system():
         valid_pattern = r'^[a-zA-Z0-9._-]+(\s*[=<>!]=\s*[0-9a-zA-Z.]+)?$'
         
         if not re.match(valid_pattern, package_name):
-            return f"Error: Invalid package name format. Package name '{package_name}' contains invalid characters."
+            print(f"Error: Invalid package name format. Package name '{package_name}' contains invalid characters.")
+            return None
         
         try:
             process = subprocess.run(
@@ -58,12 +63,12 @@ def create_meta_system():
             )
             
             if process.returncode == 0:
-                return f"Successfully installed {package_name}"
+                print(f"Successfully installed {package_name}")
             else:
-                return f"Error installing {package_name}:\n{process.stdout}"
+                print(f"Error installing {package_name}:\n{process.stdout}")
                 
         except Exception as e:
-            return f"Installation failed: {str(e)}"
+            print(f"Installation failed: {str(e)}")
     
     meta_system.create_tool(
         "PipInstall",
@@ -78,9 +83,9 @@ def create_meta_system():
         """
         try:
             target_system.add_imports(import_statement.strip())
-            return f"Import statement '{import_statement}' added to target system."
+            print(f"Import statement '{import_statement}' added to target system.")
         except Exception as e:
-            return f"Error adding import: {repr(e)}"
+            print(f"Error adding import: {repr(e)}")
     
     meta_system.create_tool(
         "AddImports",
@@ -95,11 +100,10 @@ def create_meta_system():
                 {'messages': 'List[Any]'} is the default and will be set automatically.
         """
         try:
-            attributes = json.loads(attributes)
             target_system.set_state_attributes(attributes)
-            return f"State attributes set successfully: {attributes}"
+            print(f"State attributes set successfully: {attributes}")
         except Exception as e:
-            return f"Error setting state attributes: {repr(e)}"
+            print(f"Error setting state attributes: {repr(e)}")
     
     meta_system.create_tool(
         "SetStateAttributes",
@@ -107,7 +111,7 @@ def create_meta_system():
         set_state_attributes
     )
     
-    def create_node(name: str, description: str, function_code: str) -> str:
+    def add_node(name: str, description: str, function_code: str) -> str:
         """
             Creates a node in the target system.
                 function_code: Python code defining the node's processing function
@@ -116,17 +120,17 @@ def create_meta_system():
             node_function = target_system.get_function(function_code)
 
             target_system.create_node(name, node_function, description, function_code)
-            return f"Node '{name}' created successfully"
+            print(f"Node '{name}' created successfully")
         except Exception as e:
-            return f"Error creating node: {repr(e)}"
+            print(f"Error creating node: {repr(e)}")
     
     meta_system.create_tool(
         "CreateNode",
         "Creates a node in the target system with custom function implementation",
-        create_node
+        add_node
     )
     
-    def create_tool(name: str, description: str, function_code: str) -> str:
+    def add_tool(name: str, description: str, function_code: str) -> str:
         """
             Creates a tool in the target system that can be bound to agents and invoked by functions.
                 function_code: Python code defining the tool's function including type annotations and a clear docstring
@@ -135,14 +139,14 @@ def create_meta_system():
             tool_function = target_system.get_function(function_code)
             
             target_system.create_tool(name, description, tool_function, function_code)
-            return f"Tool '{name}' created successfully"
+            print(f"Tool '{name}' created successfully")
         except Exception as e:
-            return f"Error creating tool: {repr(e)}"
+            print(f"Error creating tool: {repr(e)}")
     
     meta_system.create_tool(
         "CreateTool",
         "Creates a tool in the target system that can be used by nodes",
-        create_tool
+        add_tool
     )
     
     def edit_component(component_type: str, name: str, new_function_code: str, new_description: Optional[str] = None) -> str:
@@ -154,29 +158,33 @@ def create_meta_system():
         """
         try:
             if component_type.lower() not in ["node", "tool"]:
-                return f"Error: Invalid component type '{component_type}'. Must be 'node' or 'tool'."
+                print(f"Error: Invalid component type '{component_type}'. Must be 'node' or 'tool'.")
+                return None
             
             if name not in target_system.nodes and name not in target_system.tools:
-                return f"Error: '{name}' not found"
+                print(f"Error: '{name}' not found")
+                return None
             
             new_function = target_system.get_function(new_function_code)
                 
             if component_type.lower() == "node":
                 if name not in target_system.nodes:
-                    return f"Error: Node '{name}' not found"
+                    print(f"Error: Node '{name}' not found")
+                    return None
                     
                 target_system.edit_node(name, new_function, new_description, new_function_code)
-                return f"Node '{name}' updated successfully"
+                print(f"Node '{name}' updated successfully")
                 
             else:
                 if name not in target_system.tools:
-                    return f"Error: Tool '{name}' not found"
+                    print(f"Error: Tool '{name}' not found")
+                    return None
                     
                 target_system.edit_tool(name, new_function, new_description, new_function_code)
-                return f"Tool '{name}' updated successfully"
+                print(f"Tool '{name}' updated successfully")
                 
         except Exception as e:
-            return f"Error editing {component_type}: {repr(e)}"
+            print(f"Error editing {component_type}: {repr(e)}")
         
     meta_system.create_tool(
         "EditComponent",
@@ -192,9 +200,9 @@ def create_meta_system():
         """
         try:
             target_system.create_edge(source, target)
-            return f"Edge from '{source}' to '{target}' added successfully"
+            print(f"Edge from '{source}' to '{target}' added successfully")
         except Exception as e:
-            return f"Error adding edge: {repr(e)}"
+            print(f"Error adding edge: {repr(e)}")
     
     meta_system.create_tool(
         "AddEdge",
@@ -235,9 +243,9 @@ def create_meta_system():
             if path_map:
                 result += f" with path map to {list(path_map.values())}"
                 
-            return result
+            print(result)
         except Exception as e:
-            return f"Error adding conditional edge: {repr(e)}"
+            print(f"Error adding conditional edge: {repr(e)}")
     
     meta_system.create_tool(
         "AddConditionalEdge",
@@ -268,9 +276,10 @@ def create_meta_system():
                 results.append(f"Error setting finish point: {repr(e)}")
         
         if not results:
-            return "No endpoints were specified. Please provide entry_point and/or finish_point."
+            print("No endpoints were specified. Please provide entry_point and/or finish_point.")
+            return None
         
-        return "\n".join(results)
+        print("\n".join(results))
 
     meta_system.create_tool(
         "SetEndpoints",
@@ -286,20 +295,22 @@ def create_meta_system():
         """
         all_outputs = []
         error_message = ""
-        state = json.loads(state)
 
         try:
             if not (target_system.entry_point and target_system.finish_point):
-                return "Error testing system: You must set an entry point and finish point before testing"
+                print("Error testing system: You must set an entry point and finish point before testing")
+                return None
 
             source_code = materialize_system(target_system, None)
             namespace = {}
             exec(source_code, namespace, namespace)
             
             if 'build_system' not in namespace:
-                return "Error: Could not find build_system function in generated code"
+                print("Error: Could not find build_system function in generated code")
+                return None
                 
             target_workflow, _ = namespace['build_system']()
+            print("Testing System...")
             pbar = tqdm()
 
             for output in target_workflow.stream(state):
@@ -316,8 +327,7 @@ def create_meta_system():
 
         test_result = f"Test completed.\n <TestResults>\n{result}\n</TestResults>"
 
-        final_output = test_result + error_message
-        return final_output
+        print(test_result + error_message)
 
     meta_system.create_tool(
         "TestSystem",
@@ -332,9 +342,9 @@ def create_meta_system():
         """
         try:
             result = target_system.delete_node(node_name)
-            return f"Node '{node_name}' deleted successfully" if result else f"Failed to delete node '{node_name}'"
+            print(f"Node '{node_name}' deleted successfully" if result else f"Failed to delete node '{node_name}'")
         except Exception as e:
-            return f"Error deleting node: {repr(e)}"
+            print(f"Error deleting node: {repr(e)}")
     
     meta_system.create_tool(
         "DeleteNode",
@@ -350,9 +360,9 @@ def create_meta_system():
         """
         try:
             result = target_system.delete_edge(source, target)
-            return f"Edge from '{source}' to '{target}' deleted successfully" if result else f"No such edge from '{source}' to '{target}'"
+            print(f"Edge from '{source}' to '{target}' deleted successfully" if result else f"No such edge from '{source}' to '{target}'")
         except Exception as e:
-            return f"Error deleting edge: {repr(e)}"
+            print(f"Error deleting edge: {repr(e)}")
     
     meta_system.create_tool(
         "DeleteEdge",
@@ -367,9 +377,9 @@ def create_meta_system():
         """
         try:
             result = target_system.delete_conditional_edge(source)
-            return f"Conditional edge from '{source}' deleted successfully" if result else f"No conditional edge found from '{source}'"
+            print(f"Conditional edge from '{source}' deleted successfully" if result else f"No conditional edge found from '{source}'")
         except Exception as e:
-            return f"Error deleting conditional edge: {repr(e)}"
+            print(f"Error deleting conditional edge: {repr(e)}")
     
     meta_system.create_tool(
         "DeleteConditionalEdge",
@@ -383,7 +393,8 @@ def create_meta_system():
         """
         try:
             if not (target_system.entry_point and target_system.finish_point):
-                return "Error finalizing system: You must set an entry point and finish point before finalizing"
+                print("Error finalizing system: You must set an entry point and finish point before finalizing")
+                return None
         
             code_dir = "sandbox/workspace/automated_systems"
             materialize_system(target_system, code_dir)
@@ -395,9 +406,9 @@ def create_meta_system():
                 pickle.dump(target_system, f)
             print(f"System pickled to {pickle_path}")
             
-            return "Design process completed successfully."
+            print("Design process completed successfully.")
         except Exception as e:
-            return f"Error finalizing system: {repr(e)}"
+            print(f"Error finalizing system: {repr(e)}")
     
     meta_system.create_tool(
         "EndDesign",
@@ -405,8 +416,8 @@ def create_meta_system():
         end_design
     )
     
-    def meta_agent_function(state: Dict[str, Any]) -> Dict[str, Any]:
-        llm = LargeLanguageModel(temperature=0.4, model_name="gemini-2.0-flash", wrapper="google")
+    def meta_agent_function(state: Dict[str, Any]) -> Dict[str, Any]:  
+        llm = LargeLanguageModel(temperature=0.4, model_name="10 Mistral-Nemo-Instruct-2407 - New Mistral Nemo - give it a try", wrapper="blablador")
         context_length = 6*2 # even
         messages = state.get("messages", [])
         initial_message, current_messages = messages[0], messages[1:]
@@ -433,8 +444,8 @@ def create_meta_system():
             "set_state_attributes": set_state_attributes,
             "pip_install": pip_install,
             "add_imports": add_imports,
-            "create_node": create_node,
-            "create_tool": create_tool,
+            "add_node": add_node,
+            "add_tool": add_tool,
             "edit_component": edit_component,
             "add_edge": add_edge,
             "add_conditional_edge": add_conditional_edge,
@@ -448,15 +459,25 @@ def create_meta_system():
         
         for tool_call in tool_calls_matches:
             try:
-                # Execute the tool call
-                local_namespace = dict(tools_namespace)
-                exec(tool_call, globals(), local_namespace)
+                # Capture stdout to get tool execution results
+                string_io = io.StringIO()
+                with contextlib.redirect_stdout(string_io):
+                    local_namespace = dict(tools_namespace)
+                    
+                    # somehow it adds one leading space
+                    cleaned_tool_call = '\n'.join(
+                        line[1:] if line.startswith(' ') else line 
+                        for line in tool_call.split('\n')
+                    )
+                    
+                    exec(cleaned_tool_call, globals(), local_namespace)
                 
-                # Check if end_design was called
-                if "end_design(" in tool_call:
+                output = string_io.getvalue().strip()
+                
+                if "Design process completed" in output:
                     design_completed = True
                 
-                tool_results.append(f"Tool calls executed successfully.")
+                tool_results.append(output or "Tool call executed successfully.")
             except Exception as e:
                 error_message = f"Error executing tool call: {repr(e)}"
                 tool_results.append(error_message)
@@ -466,7 +487,6 @@ def create_meta_system():
             tool_output = "\n\n".join(tool_results)
             tool_response = f"\n\nTool Execution Results:\n{tool_output}"
             
-            # Create a new message with tool execution results
             tool_message = HumanMessage(content=tool_response)
             updated_messages = messages + [response, tool_message]
         else:
@@ -484,7 +504,6 @@ def create_meta_system():
     meta_system.set_entry_point("MetaAgent")
     meta_system.set_finish_point("EndDesign")
     
-    # Create condition to check if EndDesign was called
     def design_completed_router(state: Dict[str, Any]) -> str:
         """Routes to EndDesign if design is completed, otherwise back to MetaAgent."""
         if state.get("design_completed", False):
@@ -504,13 +523,13 @@ def create_meta_system():
     materialize_system(meta_system)
     print("----- Materialized Meta System -----")
 
-        # Generate tool documentation for the system_prompts
+    # Generate tool documentation for the system_prompts
     tool_docs = generate_tool_documentation({
         "set_state_attributes": set_state_attributes,
         "pip_install": pip_install,
         "add_imports": add_imports,
-        "create_node": create_node,
-        "create_tool": create_tool,
+        "add_node": add_node,
+        "add_tool": add_tool,
         "edit_component": edit_component,
         "add_edge": add_edge,
         "add_conditional_edge": add_conditional_edge,
@@ -525,7 +544,6 @@ def create_meta_system():
     # Create the rendered system_prompts.py file
     rendered_meta_agent = system_prompts_template.meta_agent.replace("<Tools>", tool_docs)
     
-    # Write the rendered prompt to system_prompts.py
     with open("systems/system_prompts.py", "w") as f:
         f.write(f"meta_agent = '''\n{rendered_meta_agent}\n'''")
 
@@ -536,23 +554,17 @@ def generate_tool_documentation(tools_dict):
     docs = []
     
     for tool_name, tool_func in tools_dict.items():
-        # Get docstring and signature
         doc = inspect.getdoc(tool_func)
         sig = inspect.signature(tool_func)
         
-        # Extract parameter info
         params = []
         for param_name, param in sig.parameters.items():
             param_type = param.annotation.__name__ if param.annotation != inspect.Parameter.empty else "Any"
             params.append(f"{param_name}: {param_type}")
         
-        # Format the parameter list
-        params_str = ", ".join(params)
-        
-        # Extract short description (first line of docstring)
+        params_str = ", ".join(params)   
         description = doc.strip() if doc else "No description available"
         
-        # Format documentation
         tool_doc = f"    - {tool_name}({params_str}):\n    {description}"
         docs.append(tool_doc)
     
