@@ -1,8 +1,6 @@
 import re
 import os
 import sys
-import json
-import traceback
 import dill as pickle
 import inspect
 from tqdm import tqdm
@@ -331,8 +329,7 @@ def create_meta_system():
             pbar.close()
 
         except Exception as e:
-            tb_string = traceback.format_exc()
-            error_message = f"\n\n Error while testing the system:\n{tb_string}"
+            error_message = f"\n\n Error while testing the system:\n{repr(e)}"
 
         result = all_outputs if all_outputs else {}
 
