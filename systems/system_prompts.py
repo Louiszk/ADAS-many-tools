@@ -178,7 +178,7 @@ Analyze the problem statement to identify key requirements, constraints and succ
 - All functions should be defined with 'def', do not use lambda functions.
 - The directed graph should NOT include dead ends or endless loops, where it is not possible to reach the finish point
 - The system should be fully functional, DO NOT use any placeholder logic in functions or tools
-- The whole system is wrapped in a build_system() function that returns the workflow. This structure is obligatory, do not remove it.
+- The whole system is wrapped in a build_system() function that returns the workflow and tools. This structure is obligatory, do not remove it.
 
 For each step of the implementation process:
 - Analyze what has been implemented so far in the current code and what needs to be done next
