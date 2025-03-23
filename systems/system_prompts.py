@@ -162,10 +162,6 @@ graph.add_conditional_edges("SourceNode", router_function)
     - end_design():
     Finalizes the system design process.
 
-    ### Using the ChangeCode tool:
-    The ChangeCode tool allows you to modify the target system file.
-    ''' + udiff_prompt + '''
-
 ### Using the ChangeCode tool:
 The ChangeCode tool allows you to modify the target system file.
 ''' + udiff_prompt + '''
