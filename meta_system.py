@@ -475,13 +475,7 @@ def create_meta_system():
                 with contextlib.redirect_stdout(string_io):
                     local_namespace = dict(tools_namespace)
                     
-                    # somehow it adds one leading space
-                    cleaned_tool_call = '\n'.join(
-                        line[1:] if line.startswith(' ') else line 
-                        for line in tool_call.split('\n')
-                    )
-                    
-                    exec(cleaned_tool_call, globals(), local_namespace)
+                    exec(tool_call, globals(), local_namespace)
                 
                 output = string_io.getvalue().strip()
                 

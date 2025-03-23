@@ -307,6 +307,8 @@ def build_system():
                             cleaned_message += message.content
                         if hasattr(message, 'tool_calls') and message.tool_calls:
                             cleaned_message += str(message.tool_calls)
+                        if not hasattr(message, 'content') and not hasattr(message, 'tool_calls'):
+                            cleaned_message += str(message)
                         cleaned_messages.append(cleaned_message)
                     output["messages"] = cleaned_messages
                 all_outputs.append(output)
@@ -457,13 +459,7 @@ def build_system():
                 with contextlib.redirect_stdout(string_io):
                     local_namespace = dict(tools_namespace)
     
-                    # somehow it adds one leading space
-                    cleaned_tool_call = '\n'.join(
-                        line[1:] if line.startswith(' ') else line 
-                        for line in tool_call.split('\n')
-                    )
-    
-                    exec(cleaned_tool_call, globals(), local_namespace)
+                    exec(tool_call, globals(), local_namespace)
     
                 output = string_io.getvalue().strip()
     
