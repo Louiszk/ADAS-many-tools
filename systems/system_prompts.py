@@ -1,36 +1,38 @@
 # modified from https://github.com/Aider-AI/aider/blob/main/aider/coders/udiff_prompts.py
 udiff_prompt = """
-    Return edits similar to unified diffs that `diff -U0` would produce.
+Return edits similar to unified diffs that `diff -U0` would produce.
 
-    Don't include file paths like --- a/agentic_system/main.py\n+++ b/agentic_system/main.py\n
-    Don't include timestamps, start right away with `@@ ... @@`
+Don't include file paths like --- a/agentic_system/main.py\n+++ b/agentic_system/main.py\n
+Don't include timestamps, start right away with `@@ ... @@`
 
-    Start each hunk of changes with a `@@ ... @@` line.
-    Don't include line numbers like `diff -U0` does.
-    The user's patch tool doesn't need them.
+Start each hunk of changes with a `@@ ... @@` line.
+Don't include line numbers like `diff -U0` does.
+The user's patch tool doesn't need them.
 
-    The user's patch tool needs CORRECT patches that apply cleanly against the current contents of the file!
-    Think carefully and make sure you include and mark all lines that need to be removed or changed as `-` lines.
-    Make sure you mark all new or modified lines with `+`.
-    Don't leave out any lines or the diff patch won't apply correctly.
+The user's patch tool needs CORRECT patches that apply cleanly against the current contents of the file!
+Think carefully and make sure you include and mark all lines that need to be removed or changed as `-` lines.
+Make sure you mark all new or modified lines with `+`.
+Don't leave out any lines or the diff patch won't apply correctly.
 
-    Indentation matters in the diffs!
+Indentation matters in the diffs!
 
-    Start a new hunk for each section of the file that needs changes.
+Start a new hunk for each section of the file that needs changes.
 
-    Only output hunks that specify changes with `+` or `-` lines.
-    Skip any hunks that are entirely unchanging ` ` lines.
+Only output hunks that specify changes with `+` or `-` lines.
+Skip any hunks that are entirely unchanging ` ` lines.
 
-    Output hunks in whatever order makes the most sense.
-    Hunks don't need to be in any particular order.
+Output hunks in whatever order makes the most sense.
+Hunks don't need to be in any particular order.
 
-    When editing a function, method, loop, etc use a hunk to replace the *entire* code block.
-    Delete the entire existing version with `-` lines and then add a new, updated version with `+` lines.
-    This will help you generate correct code and correct diffs.
+When editing a function, method, loop, etc use a hunk to replace the *entire* code block.
+Delete the entire existing version with `-` lines and then add a new, updated version with `+` lines.
+This will help you generate correct code and correct diffs.
 """
 
-chain_of_thought = """Use explicit chain-of-thought reasoning to think through it step by step. 
-    Wrap this reasoning in <thinking> </thinking> tags, before making the tool calls."""
+chain_of_thought = """
+Use explicit chain-of-thought reasoning to think through it step by step. 
+Wrap this reasoning in <thinking> </thinking> tags, before making the tool calls.
+"""
 
 CoT = True
 
