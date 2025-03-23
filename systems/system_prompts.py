@@ -1,33 +1,15 @@
-# modified from https://github.com/Aider-AI/aider/blob/main/aider/coders/udiff_prompts.py
-udiff_prompt = """
-Return edits similar to unified diffs that `diff -U0` would produce.
-The whole diff MUST be wrapped inside triple quotes '''!
+file_content_prompt = """
+Return the complete file content. The content you provide will completely replace the existing content of the target file.
 
-Don't include file paths like --- a/agentic_system/main.py\n+++ b/agentic_system/main.py\n
-Don't include timestamps, start right away with `@@ ... @@`
+Make sure your file includes:
+- All necessary imports at the top
+- All required function, class, and variable definitions
+- All node and edge configurations
+- Entry/exit point configurations
+- Proper indentation and formatting
 
-Start each hunk of changes with a `@@ ... @@` line.
-Don't include line numbers like `diff -U0` does.
-The user's patch tool doesn't need them.
-
-The user's patch tool needs CORRECT patches that apply cleanly against the current contents of the file!
-Think carefully and make sure you include and mark all lines that need to be removed or changed as `-` lines.
-Make sure you mark all new or modified lines with `+`.
-Don't leave out any lines or the diff patch won't apply correctly.
-
-Indentation matters in the diffs!
-
-Start a new hunk for each section of the file that needs changes.
-
-Only output hunks that specify changes with `+` or `-` lines.
-Skip any hunks that are entirely unchanging ` ` lines.
-
-Output hunks in whatever order makes the most sense.
-Hunks don't need to be in any particular order.
-
-When editing a function, method, loop, etc use a hunk to replace the *entire* code block.
-Delete the entire existing version with `-` lines and then add a new, updated version with `+` lines.
-This will help you generate correct code and correct diffs.
+DO NOT GET LAZY!
+The user's system expects a fully functional file that can run without errors.
 """
 
 chain_of_thought = """
@@ -151,9 +133,9 @@ graph.add_conditional_edges("SourceNode", router_function)
     Securely installs a Python package using pip.
     package_name: Name of the package to install e.g. "langgraph==0.3.5"
 
-    - change_code(diff: str):
-    Modifies the target system file using a unified diff.
-    diff: A unified diff string representing the changes to make to the target system file
+    - change_code(file_content: str):
+    Updates the target system file with the provided content.
+    file_content: The complete content to write to the target system file.
 
     - test_system(state: Dict):
     Executes the current system with a test input state to validate functionality.
@@ -164,7 +146,7 @@ graph.add_conditional_edges("SourceNode", router_function)
 
 ### Using the ChangeCode tool:
 The ChangeCode tool allows you to modify the target system file.
-''' + udiff_prompt + '''
+''' + file_content_prompt + '''
 
 Analyze the problem statement to identify key requirements, constraints and success criteria.
 
@@ -196,23 +178,42 @@ tool_name2(param1="value1", param2="value2", ...)
 For example:
 
 ```tool_calls
-change_code(diff=\'\'\'
-@@ ... @@
--    # ===== Node Definitions =====
-+    # ===== Node Definitions =====
-+    # Node: ProcessorNode
-+    # Description: Processes input data and returns a result
-+    def processor_node(state):
-+        # Process the input data
-+        input_data = state.get("input_data", "")
-+        result = input_data.upper()
-+        
-+        # Update state with the result
-+        new_state = state.copy()
-+        new_state["result"] = result
-+        return new_state
-+    
-+    graph.add_node("ProcessorNode", processor_node)
+change_code(file_content=\'\'\'
+# Imports
+from langgraph.graph import StateGraph
+from langchain_core.tools import tool
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage
+from typing import Dict, List, Any, Callable, Optional, Union, TypeVar, Generic, Tuple, Set, TypedDict
+from agentic_system.large_language_model import LargeLanguageModel, execute_tool_calls
+
+def build_system():
+    # Define state attributes for the system
+    class AgentState(TypedDict):
+        messages: List[Any]
+
+    # Initialize graph with state
+    graph = StateGraph(AgentState)
+
+    tools = {}
+    # ===== Tool Definitions =====
+    # Define tools here
+    
+    # Register all tools with LargeLanguageModel class
+    LargeLanguageModel.register_available_tools(tools)
+
+    # ===== Node Definitions =====
+    # Define nodes here
+
+    # ===== Edge Definitions =====
+    # Define edges here
+
+    # ===== Entry/Exit Configuration =====
+    graph.set_entry_point("EntryNode")
+    graph.set_finish_point("ExitNode")
+
+    # ===== Compilation =====
+    workflow = graph.compile()
+    return workflow, tools
 \'\'\'
 )
 ```end
