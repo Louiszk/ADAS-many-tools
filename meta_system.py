@@ -310,10 +310,19 @@ def create_meta_system():
                 return None
                 
             target_workflow, _ = namespace['build_system']()
-            print("Testing System...")
-            pbar = tqdm()
+            pbar = tqdm(desc="Testing the System")
 
             for output in target_workflow.stream(state, config={"recursion_limit": 20}):
+                cleaned_messages = []
+                if "messages" in output:
+                    for message in output["messages"]:
+                        cleaned_message = getattr(message, 'type', 'Unknown') + ": "
+                        if hasattr(message, 'content') and message.content:
+                            cleaned_message += message.content
+                        if hasattr(message, 'tool_calls') and message.tool_calls:
+                            cleaned_message += str(message.tool_calls)
+                        cleaned_messages.append(cleaned_message)
+                    output["messages"] = cleaned_messages
                 all_outputs.append(output)
                 pbar.update(1)
             

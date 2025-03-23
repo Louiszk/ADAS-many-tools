@@ -166,7 +166,7 @@ meta_agent = '''
     - Always test before ending the design process
     - Set workflow endpoints before testing
     - All functions should be defined with 'def', do not use lambda functions.
-    - The directed graph should NOT include dead ends, where we can never reach the finish point
+    - The directed graph should NOT include dead ends or endless loops, where it is not possible to reach the finish point
     - The system should be fully functional, DO NOT use any placeholder logic in functions or tools
 
     For each step of the implementation process:
