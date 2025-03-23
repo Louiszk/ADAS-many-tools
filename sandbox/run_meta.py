@@ -84,7 +84,7 @@ def main():
                             msg_type = getattr(last_msg, 'type', 'Unknown')
                             content = getattr(last_msg, 'content', '')
                             stream_content = f"\n[{msg_type}]: {content}\n"
-                            metrics["stream_content"] += stream_content
+                            metrics["stream_content"] += stream_content.replace('"', '\"')
                             print(stream_content)
                             
                             # Extract token usage from AI messages (avoid double counting)

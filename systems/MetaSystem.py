@@ -143,6 +143,7 @@ def build_system():
             edits = find_diffs(diff)
 
             if not edits:
+                print(no_match_error)
                 return no_match_error
 
             success = False
@@ -180,14 +181,15 @@ def build_system():
                     else:
                         error_msg += f"Hunk #{i+1} failed to match:\n```\n{failed['before_text']}\n```\n"
 
-                return error_msg
+                print(error_msg)
+                return (error_msg)
 
             with open(target_system_file, 'w') as f:
                 f.write(content)
 
-            return f"Successfully applied diff to the system."
+            print("Successfully applied diff to the system.")
         except Exception as e:
-            return f"Error applying diff: {repr(e)}"
+            print(f"Error applying diff: {repr(e)}")
 
     tools["ChangeCode"] = tool(runnable=change_code, name_or_callable="ChangeCode")
 
@@ -202,13 +204,14 @@ def build_system():
                 content = f.read()
 
             if "set_entry_point" not in content or "set_finish_point" not in content:
-                return "Error finalizing system: You must set an entry point and finish point before finalizing"
+                print("Error finalizing system: You must set an entry point and finish point before finalizing")
+                return None
 
             # We could test the system here again
 
-            return "Design process completed successfully."
+            print("Design process completed successfully.")
         except Exception as e:
-            return f"Error finalizing system: {repr(e)}"
+            print(f"Error finalizing system: {repr(e)}")
     
 
     tools["EndDesign"] = tool(runnable=end_design, name_or_callable="EndDesign")
