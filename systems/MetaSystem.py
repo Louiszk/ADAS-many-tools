@@ -209,7 +209,7 @@ def build_system():
 
             print("Design process completed successfully.")
         except Exception as e:
-            return f"Error finalizing system: {repr(e)}"
+            print(f"Error finalizing system: {repr(e)}")
     
 
     tools["EndDesign"] = tool(runnable=end_design, name_or_callable="EndDesign")
