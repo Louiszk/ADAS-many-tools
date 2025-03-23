@@ -299,7 +299,7 @@ def build_system():
             print("Testing System...")
             pbar = tqdm()
     
-            for output in target_workflow.stream(state):
+            for output in target_workflow.stream(state, config={"recursion_limit": 20}):
                 all_outputs.append(output)
                 pbar.update(1)
     
@@ -401,7 +401,7 @@ def build_system():
     # Node: MetaAgent
     # Description: Meta Agent
     def meta_agent_function(state: Dict[str, Any]) -> Dict[str, Any]:  
-        llm = LargeLanguageModel(temperature=0.4, model_name="10 Mistral-Nemo-Instruct-2407 - New Mistral Nemo - give it a try", wrapper="blablador")
+        llm = LargeLanguageModel(temperature=0.4, model_name="gemini-2.0-flash", wrapper="google")
         context_length = 6*2 # even
         messages = state.get("messages", [])
         initial_message, current_messages = messages[0], messages[1:]
@@ -420,7 +420,7 @@ def build_system():
         tool_results = []
     
         # Find all tool calls
-        tool_calls_pattern = r"```tool_calls\n(.*?)```"
+        tool_calls_pattern = r"```tool_calls\n(.*?)```end"
         tool_calls_matches = re.findall(tool_calls_pattern, response_content, re.DOTALL)
     
         # Define the available tools in a namespace

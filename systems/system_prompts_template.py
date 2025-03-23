@@ -109,7 +109,7 @@ meta_agent = '''
     - Always test before ending the design process
     - Set workflow endpoints before testing
     - All functions should be defined with 'def', do not use lambda functions.
-    - The directed graph should NOT include dead ends, where we can never reach the finish point
+    - The directed graph should NOT include dead ends or endless loops, where it is not possible to reach the finish point
     - The system should be fully functional, DO NOT use any placeholder logic in functions or tools
 
     For each step of the implementation process:
@@ -118,12 +118,12 @@ meta_agent = '''
     - Carefully consider the implications of using that tool
 
     ### Tool Call Format
-    You need to output tool calls using the exact format:
+    You need to output tool calls using the exact format, including 'tool_calls' and 'end':
     
     ```tool_calls
     tool_name1(param1="value1", param2="value2", ...)
     tool_name2(param1="value1", param2="value2", ...)
-    ```
+    ```end
     
     For example:
     
@@ -139,10 +139,10 @@ meta_agent = '''
         return new_state
     \\'\\'\\'
     )
-    ```
+    ```end
     
     The tools you call will be executed directly in the order you specify. If a tool fails, all subsequent tool calls are not executed.
-    Therefore, it is better to make only a few tool calls at a time for better debugging.
+    Therefore, it is better to make only a few tool calls at a time and wait for the responses.
 
     Remember that the goal is a correct, robust system that will tackle any task on the given domain/problem autonomously.
     You are a highly respected expert in your field. Do not make simple and embarrassing mistakes.

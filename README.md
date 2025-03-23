@@ -49,9 +49,12 @@ docker --version
 
 The meta system is an agentic system that can design other agentic systems.
 
+First Start
 ```bash
-python main_meta.py --name "MySystem" --problem "Create a system that can..." --materialize
+python main_meta.py --materialize --reinstall
 ```
+
+After the first start it is advisable to set no-keep-template.
 
 Options:
 - `--name`: Target system name
@@ -59,6 +62,7 @@ Options:
 - `--materialize`: Materialize meta system first (should be set for the first start)
 - `--reinstall`: Reinstall dependencies (should be set for the first start)
 - `--optimize-system`: Name of existing system to optimize
+- `--no-keep-template`: Do not keep the docker image template
 
 - Some examples are in system_ideas.txt
 

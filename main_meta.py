@@ -13,9 +13,9 @@ def run_meta_system_in_sandbox(session, problem_statement, target_name, optimize
     
     print("\nMeta system execution completed!")
     
-    # Copy any generated systems back to the host
+    # Copy any generated systems and metrics back to the host
     if "automated_systems" in str(session.execute_command("ls -la /sandbox/workspace")):
-        print("Copying generated systems back to host...")
+        print("Copying generated systems and metrics back to host...")
         os.makedirs("automated_systems", exist_ok=True)
         target_file_name = target_name.replace("/", "_").replace("\\", "_").replace(":", "_") + ".py"
         
@@ -25,6 +25,17 @@ def run_meta_system_in_sandbox(session, problem_statement, target_name, optimize
                 f"automated_systems/{target_file_name}"
             )
             print(f"Copied {target_file_name} back to host")
+        
+        if "metrics" in str(session.execute_command("ls -la /sandbox/workspace/automated_systems")):
+            metrics_file = target_name.replace("/", "_").replace("\\", "_").replace(":", "_") + ".json"
+            
+            if metrics_file in str(session.execute_command("ls -la /sandbox/workspace/automated_systems/metrics")):
+                os.makedirs("automated_systems/metrics", exist_ok=True)
+                session.copy_from_runtime(
+                    f"/sandbox/workspace/automated_systems/metrics/{metrics_file}", 
+                    f"automated_systems/metrics/{metrics_file}"
+                )
+                print(f"Copied metrics file {metrics_file} back to host")
     
     return True
 
@@ -34,9 +45,9 @@ def main():
     Project Euler challenges participants to solve complex mathematical and computational problems
     using programming skills and mathematical insights.
     
-    The system should be really small and easy for the start, just one agent and one tool.
-    The tool should be really generic, just an exec tool; so that the agent can solve any problem.
-    The agent should have a clear and comprehensive system prompt so that it know how to use the tool.
+    The system should consist of just one agent and one tool.
+    The tool should allow to execute python code, so that the agent can solve any problem.
+    The state must contain the attribute "solution" : "str", where only the final solution is saved.
     """
 
     target_name = "SimpleEulerSolver"

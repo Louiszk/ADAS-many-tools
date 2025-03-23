@@ -175,12 +175,12 @@ meta_agent = '''
     - Carefully consider the implications of using that tool
 
     ### Tool Call Format
-    You need to output tool calls using the exact format:
+    You need to output tool calls using the exact format, including 'tool_calls' and 'end':
     
     ```tool_calls
     tool_name1(param1="value1", param2="value2", ...)
     tool_name2(param1="value1", param2="value2", ...)
-    ```
+    ```end
     
     For example:
     
@@ -196,10 +196,10 @@ meta_agent = '''
         return new_state
     \'\'\'
     )
-    ```
+    ```end
     
     The tools you call will be executed directly in the order you specify. If a tool fails, all subsequent tool calls are not executed.
-    Therefore, it is better to make only a few tool calls at a time for better debugging.
+    Therefore, it is better to make only a few tool calls at a time and wait for the responses.
 
     Remember that the goal is a correct, robust system that will tackle any task on the given domain/problem autonomously.
     You are a highly respected expert in your field. Do not make simple and embarrassing mistakes.
