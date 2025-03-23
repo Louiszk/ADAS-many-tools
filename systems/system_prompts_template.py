@@ -43,6 +43,7 @@ meta_agent = '''
         llm = LargeLanguageModel(temperature=0.4)
         system_prompt = "..." # Task of that agent
         # Optionally bind tools that this agent can use
+        # This will automatically instruct the agent based on the tools docstrings
         llm.bind_tools(["Tool1", "Tool2"])
         
         # get message history, or other crucial information
