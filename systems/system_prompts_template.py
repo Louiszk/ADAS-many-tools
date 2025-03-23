@@ -54,7 +54,6 @@ def agent_node(state):
     response = llm.invoke(full_messages)
 
     # execute the tool calls from the agent's response
-    # returns both tool messages (List) and actual tool results (Dict[str, Tuple[Any]])
     tool_messages, tool_results = execute_tool_calls(response)
     
     # You can now use tool_results programmatically if needed
