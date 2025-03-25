@@ -1,6 +1,7 @@
 # modified from https://github.com/Aider-AI/aider/blob/main/aider/coders/udiff_prompts.py
 udiff_prompt = """
 Return edits similar to unified diffs that `diff -U0` would produce.
+The diff must be wrapped inside triple quotes '''!
 
 Don't include file paths like --- a/agentic_system/main.py\n+++ b/agentic_system/main.py\n
 Don't include timestamps, start right away with `@@ ... @@`
