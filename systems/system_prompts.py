@@ -48,7 +48,6 @@ def agent_node(state):
     response = llm.invoke(full_messages)
 
     # execute the tool calls from the agent's response
-    # returns both tool messages (List) and actual tool results (Dict[str, Tuple[Any]])
     tool_messages, tool_results = execute_tool_calls(response)
     
     # You can now use tool_results programmatically if needed
@@ -156,6 +155,8 @@ def router_function(state):
     - end_design():
     Finalizes the system design process.
 
+All function code MUST be wrapped inside triple quotes \'\'\'!
+
 Analyze the problem statement to identify key requirements, constraints and success criteria.
 
 Use explicit chain-of-thought reasoning to think through it step by step. 
@@ -199,7 +200,7 @@ def agent_node(state):
 )
 ```end
 
-Make sure to properly escape quotes, backslashes, and other special characters inside tool call parameters to avoid syntax errors or unintended behavior.
+Make sure to properly escape backslashes, and other special characters inside tool call parameters to avoid syntax errors or unintended behavior.
 The tools you call will be executed directly in the order you specify. If a tool fails, all subsequent tool calls are not executed.
 Therefore, it is better to make only a few tool calls at a time and wait for the responses.
 
