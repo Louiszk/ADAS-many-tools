@@ -1,5 +1,6 @@
 file_content_prompt = """
 Return the complete file content. The content you provide will completely replace the existing content of the target file.
+The whole file_content MUST be wrapped inside triple quotes '''!
 
 Make sure your file includes:
 - All necessary imports at the top
@@ -178,8 +179,7 @@ tool_name2(param1="value1", param2="value2", ...)
 For example:
 
 ```tool_calls
-change_code(file_content=\'\'\'
-# Imports
+change_code(file_content=\'\'\'# Imports
 from langgraph.graph import StateGraph
 from langchain_core.tools import tool
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage
