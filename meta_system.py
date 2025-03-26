@@ -93,7 +93,7 @@ def create_meta_system():
     
     def set_state_attributes(attributes: Dict[str, str]) -> str:
         """
-            Defines state attributed accessible throughout the system. Only defines the type annotations, not the values.
+            Defines state attributes accessible throughout the system. Only defines the type annotations, not the values.
                 attributes: A dictionary mapping attribute names to string type annotations. 
                 {'messages': 'List[Any]'} is the default and will be set automatically.
         """
