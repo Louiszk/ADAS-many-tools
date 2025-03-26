@@ -54,14 +54,27 @@ class StreamingSandboxSession:
                 **kwargs
             )
         elif container_type == 'podman':
-            # For Podman, prepend docker.io/library/ to the image name if it's a simple name
+            # For Podman, create client with correct URI
+            from podman import PodmanClient
+            import os
+            
+            # Use custom URI based on your storage location
+            uri = f"unix:/tmp/lf37cyti/podman-storage/podman/podman.sock"
+            custom_client = None
+            try:
+                custom_client = PodmanClient(uri)
+                custom_client.info()  # Test if it works
+            except Exception:
+                custom_client = None
+                
+            # Set podman image name
             podman_image = image
             if image and not dockerfile and '/' not in image:
                 podman_image = f"docker.io/library/{image}"
                 if verbose:
                     print(f"Using fully qualified image name for Podman: {podman_image}")
                 
-                # Get image ID from CLI if available
+                # Get image ID for direct lookup
                 import subprocess
                 try:
                     result = subprocess.run(
@@ -69,11 +82,11 @@ class StreamingSandboxSession:
                         capture_output=True, text=True, check=True
                     )
                     image_id = result.stdout.strip()
-                    if image_id:
+                    if image_id and verbose:
                         print(f"Found image with ID: {image_id}, using ID directly")
-                        podman_image = image_id
                 except Exception as e:
-                    print(f"Note: Couldn't get image ID, will try with name: {e}")
+                    if verbose:
+                        print(f"Note: Couldn't get image ID: {e}")
                     
             self.session = SandboxPodmanSession(
                 image=podman_image,
@@ -81,10 +94,9 @@ class StreamingSandboxSession:
                 keep_template=keep_template,
                 verbose=verbose,
                 runtime_configs=runtime_configs,
+                client=custom_client,
                 **kwargs
             )
-        else:
-            raise ValueError(f"Unknown container type: {container_type}")
 
     # Delegate methods to the underlying session
     def open(self):
@@ -138,10 +150,19 @@ def check_podman_running():
     """Check if Podman is running and available."""
     try:
         from podman import PodmanClient
-        client = PodmanClient()
-        # Simple check to see if podman is accessible
-        client.info()
-        return True
+        import os
+        
+        # Use the same URI pattern as podman CLI with your custom storage
+        uri = f"unix:/tmp/lf37cyti/podman-storage/podman/podman.sock"
+        client = PodmanClient(uri)
+        try:
+            client.info()
+            return True
+        except Exception:
+            # Try default socket path if custom fails
+            client = PodmanClient()
+            client.info()
+            return True
     except (ImportError, Exception) as e:
         if isinstance(e, ImportError):
             print("Podman Python package not installed. Unable to use Podman.")
