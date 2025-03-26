@@ -54,8 +54,15 @@ class StreamingSandboxSession:
                 **kwargs
             )
         elif container_type == 'podman':
+            # For Podman, prepend docker.io/library/ to the image name if it's a simple name
+            podman_image = image
+            if image and not dockerfile and '/' not in image:
+                podman_image = f"docker.io/library/{image}"
+                if verbose:
+                    print(f"Using fully qualified image name for Podman: {podman_image}")
+                    
             self.session = SandboxPodmanSession(
-                image=image,
+                image=podman_image,
                 dockerfile=dockerfile,
                 keep_template=keep_template,
                 verbose=verbose,
