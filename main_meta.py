@@ -1,7 +1,7 @@
 import os
 import argparse
 from meta_system import create_meta_system
-from sandbox.sandbox import StreamingSandboxSession, setup_sandbox_environment, check_docker_running
+from sandbox.sandbox import StreamingSandboxSession, setup_sandbox_environment, check_docker_running, check_podman_running
 
 def run_meta_system_in_sandbox(session, problem_statement, target_name, optimize_system=None):
     quoted_problem = problem_statement.replace('"', '\\"')
@@ -59,25 +59,36 @@ def main():
     parser.add_argument("--problem", default=prompt, help="Problem statement to solve")
     parser.add_argument("--name", default=target_name, help="Target system name")
     parser.add_argument("--optimize-system", default=None, help="Specify target system name to optimize or change")
+    parser.add_argument("--container", choices=["auto", "docker", "podman"], default="auto", 
+                        help="Container runtime to use (auto will try Docker first, then Podman)")
     
     args = parser.parse_args()
     print(args)
     
-    if args.materialize:
-        create_meta_system()
-    elif not os.path.exists("systems/MetaSystem.py"):
-        print("Error: MetaSystem.py not found and --skip-materialize is set")
-        return
-    
-    if not check_docker_running():
-        return
+    # Determine container type
+    container_type = None
+    if args.container == "docker":
+        if not check_docker_running():
+            print("Docker is not running or not available. Please start Docker and try again.")
+            return
+        container_type = "docker"
+    elif args.container == "podman":
+        if not check_podman_running():
+            print("Podman is not running or not available. Please install/start Podman and try again.")
+            return
+        container_type = "podman"
+    else:  # auto
+        if not check_docker_running() and not check_podman_running():
+            print("Neither Docker nor Podman are available. Please install and start one of them.")
+            return
+        # container_type remains None to let StreamingSandboxSession auto-detect
     
     session = StreamingSandboxSession(
         # dockerfile="Dockerfile",
-        image = "python:3.11-slim",
+        image="python:3.11-slim",
         keep_template=args.keep_template,
-        stream=True,
-        verbose=True
+        verbose=True,
+        container_type=container_type
     )
     
     try:
