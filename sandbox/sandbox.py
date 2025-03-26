@@ -114,14 +114,39 @@ class StreamingSandboxSession:
         if not self.session:
             raise RuntimeError("Session is not open")
         
-        kwargs = {"stream": True, "tty": True}
-        if workdir:
-            kwargs["workdir"] = workdir
+        # For Docker, use the container's exec_run method
+        if not isinstance(self.session, SandboxPodmanSession):
+            kwargs = {"stream": True, "tty": True}
+            if workdir:
+                kwargs["workdir"] = workdir
+                
+            _, output_stream = self.session.container.exec_run(command, **kwargs)
             
-        _, output_stream = self.session.container.exec_run(command, **kwargs)
-        
-        for chunk in output_stream:
-            yield chunk.decode("utf-8")
+            for chunk in output_stream:
+                yield chunk.decode("utf-8")
+        else:
+            # For Podman, use direct CLI execution for proper streaming
+            container_id = self.session.container.id
+            
+            base_cmd = ["podman", "exec"]
+            if workdir:
+                base_cmd.extend(["-w", workdir])
+            
+            exec_cmd = base_cmd + [container_id, "sh", "-c", command]
+                
+            process = subprocess.Popen(
+                exec_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1  # Line buffered
+            )
+            
+            # Stream output in real-time
+            for line in iter(process.stdout.readline, ''):
+                yield line
+            
+            process.wait()
 
 def get_podman_image_id(image_name, verbose=False):
     """Get Podman image ID using CLI."""
