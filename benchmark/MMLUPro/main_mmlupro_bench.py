@@ -5,29 +5,26 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from sandbox.sandbox import StreamingSandboxSession, setup_sandbox_environment, check_docker_running
 
-def run_gsmhard_benchmark_in_sandbox(session, system_name):
-    print(f"Running GSM-Hard benchmark for system: {system_name}")
+def run_mmlupro_benchmark_in_sandbox(session, system_name):
+    print(f"Running MMLU-Pro benchmark for system: {system_name}")
     
-    base_path = "benchmark/GSMHard"
+    base_path = "benchmark/MMLUPro"
     system_path = system_name.replace(".", "/") + ".py"
     os.makedirs(base_path, exist_ok=True)
     
     # Ensure the benchmark directory exists in the sandbox
     session.execute_command(f"mkdir -p /sandbox/workspace/{base_path}")
     session.execute_command(f"mkdir -p /sandbox/workspace/{base_path}/results")
-    session.execute_command(f"mkdir -p /sandbox/workspace/automated_systems/GSMHard")
+    session.execute_command(f"mkdir -p /sandbox/workspace/automated_systems/MMLUPro")
     
     # Copy benchmark files to the sandbox
-    session.copy_to_runtime(f"{base_path}/run_gsmhard_bench.py", f"/sandbox/workspace/{base_path}/run_gsmhard_bench.py")
-    session.copy_to_runtime(f"{base_path}/GSMHardBaseline.py", f"/sandbox/workspace/{base_path}/GSMHardBaseline.py")
-    session.copy_to_runtime(f"{base_path}/GSMHardExecBaseline.py", f"/sandbox/workspace/{base_path}/GSMHardExecBaseline.py")
+    session.copy_to_runtime(f"{base_path}/run_mmlupro_bench.py", f"/sandbox/workspace/{base_path}/run_mmlupro_bench.py")
+    session.copy_to_runtime(f"{base_path}/MMLUProBaseline.py", f"/sandbox/workspace/{base_path}/MMLUProBaseline.py")
+    session.copy_to_runtime(f"{base_path}/MMLUProCoTBaseline.py", f"/sandbox/workspace/{base_path}/MMLUProCoTBaseline.py")
     session.copy_to_runtime(system_path, f"/sandbox/workspace/{system_path}")
     
-    # Install required packages
-    # session.execute_command(f"pip install datasets")
-    
     # Run the benchmark
-    command = f"python3 /sandbox/workspace/{base_path}/run_gsmhard_bench.py --system=\"{system_name}\""
+    command = f"python3 /sandbox/workspace/{base_path}/run_mmlupro_bench.py --system=\"{system_name}\""
     print(f"Executing command: {command}")
     
     # Run the benchmark and stream the output
@@ -49,8 +46,8 @@ def run_gsmhard_benchmark_in_sandbox(session, system_name):
     return True
 
 def main():
-    parser = argparse.ArgumentParser(description="Run GSM-Hard benchmark in a sandboxed environment")
-    parser.add_argument("--system", required=True, help="Name of the system to benchmark (e.g., 'GSMHardBaseline')")
+    parser = argparse.ArgumentParser(description="Run MMLU-Pro benchmark in a sandboxed environment")
+    parser.add_argument("--system", required=True, help="Name of the system to benchmark (e.g., 'MMLUProBaseline')")
     parser.add_argument("--no-keep-template", dest="keep_template", action="store_false", help="Don't keep the Docker image after the session is closed")
     parser.add_argument("--reinstall", action="store_true", help="Reinstall dependencies")
     
@@ -72,7 +69,7 @@ def main():
         print("Sandbox session opened")
         
         if setup_sandbox_environment(session, args.reinstall):
-            run_gsmhard_benchmark_in_sandbox(
+            run_mmlupro_benchmark_in_sandbox(
                 session, 
                 args.system
             )

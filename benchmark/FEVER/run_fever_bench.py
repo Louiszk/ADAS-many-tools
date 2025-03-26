@@ -5,7 +5,6 @@ import random
 import importlib
 import concurrent.futures
 from typing import Dict
-from datasets import load_dataset
 
 sys.path.append('/sandbox/workspace')
 
@@ -16,45 +15,39 @@ def execute_problem(problem_item, system_path):
         workflow, _ = system_module.build_system()
         
         # Run the problem through the system
-        input_state = {"messages": [], "problem": problem_item["input"]}
+        input_state = {"messages": [], "claim": problem_item["claim"]}
         output = workflow.invoke(input_state)
         
         # Get the predicted answer and compare with ground truth
-        predicted = output.get("solution", "")
-        expected = str(problem_item["target"])
+        predicted = output.get("prediction", "")
+        expected = problem_item["label"]
         
-        try:
-            predicted_float = float(predicted)
-            expected_float = float(expected)
-            # Allow for small differences in floating point
-            is_correct = abs(predicted_float - expected_float) < 1e-6
-        except ValueError:
-            is_correct = predicted == expected
+        is_correct = predicted == expected
         
         return {
-            "question": problem_item["input"],
+            "id": problem_item["id"],
+            "claim": problem_item["claim"],
             "predicted": predicted,
             "expected": expected,
             "is_correct": is_correct,
         }
     except Exception as e:
         return {
-            "question": problem_item["input"],
+            "id": problem_item["id"],
+            "claim": problem_item["claim"],
             "predicted": f"Exception: {repr(e)}",
-            "expected": str(problem_item["target"]),
+            "expected": problem_item["label"],
             "is_correct": False,
         }
 
 def run_benchmark_parallel(system_path, max_workers=None):
-    """Run the GSM-Hard benchmark with parallel execution."""
+    """Run the FEVER benchmark with parallel execution."""
     print(f"Running benchmark for: {system_path}")
     
     # Load the dataset
     try:
-        dataset = load_dataset("reasoning-machines/gsm-hard")['train']
-        random.seed(42)
-        indices = random.sample(range(len(dataset)), 120)
-        dataset = dataset.select(indices)
+        with open('sandbox/workspace/benchmark/FEVER/fever_subset.json', 'r', encoding='utf-8') as f:
+            dataset = json.load(f)
         print(f"Loaded dataset with {len(dataset)} problems")
     except Exception as e:
         print(f"Error loading dataset: {str(e)}")
@@ -65,7 +58,12 @@ def run_benchmark_parallel(system_path, max_workers=None):
         "total_problems": len(dataset),
         "correct": 0,
         "incorrect": 0,
-        "problem_results": {}
+        "problem_results": {},
+        "label_metrics": {
+            "SUPPORTS": {"true": 0, "false": 0, "total": 0},
+            "REFUTES": {"true": 0, "false": 0, "total": 0},
+            "NOT ENOUGH INFO": {"true": 0, "false": 0, "total": 0}
+        }
     }
     
     # Execute all problems in parallel
@@ -83,6 +81,15 @@ def run_benchmark_parallel(system_path, max_workers=None):
             try:
                 result_info = future.result()
                 is_correct = result_info["is_correct"]
+                expected_label = result_info["expected"]
+                
+                # Update label-specific metrics
+                if expected_label in results["label_metrics"]:
+                    results["label_metrics"][expected_label]["total"] += 1
+                    if is_correct:
+                        results["label_metrics"][expected_label]["true"] += 1
+                    else:
+                        results["label_metrics"][expected_label]["false"] += 1
                 
                 if is_correct:
                     print(f"✓ Problem {idx}: Correct")
@@ -103,7 +110,15 @@ def run_benchmark_parallel(system_path, max_workers=None):
     total_attempted = results["correct"] + results["incorrect"]
     results["accuracy"] = results["correct"] / total_attempted if total_attempted > 0 else 0
     
-    results_file = f"sandbox/workspace/benchmark/GSMHard/results/benchmark_results_{system_path}.json"
+    # Calculate per-label accuracy
+    for label in results["label_metrics"]:
+        label_total = results["label_metrics"][label]["total"]
+        if label_total > 0:
+            results["label_metrics"][label]["accuracy"] = results["label_metrics"][label]["true"] / label_total
+        else:
+            results["label_metrics"][label]["accuracy"] = 0
+    
+    results_file = f"sandbox/workspace/benchmark/FEVER/results/benchmark_results_{system_path}.json"
     with open(results_file, 'w') as f:
         json.dump(results, f, indent=2)
     
@@ -113,12 +128,17 @@ def run_benchmark_parallel(system_path, max_workers=None):
     print(f"Incorrect: {results['incorrect']}")
     print(f"Accuracy: {results['accuracy'] * 100:.2f}%")
     
+    print("\nPer-label Performance:")
+    for label, metrics in results["label_metrics"].items():
+        if metrics["total"] > 0:
+            print(f"{label}: {metrics['accuracy'] * 100:.2f}% ({metrics['true']}/{metrics['total']})")
+    
     return results
 
 if __name__ == "__main__":
     import argparse
     
-    parser = argparse.ArgumentParser(description="Run GSM-Hard benchmark")
+    parser = argparse.ArgumentParser(description="Run FEVER benchmark")
     parser.add_argument("--system", required=True, help="System path to benchmark")
     
     args = parser.parse_args()
