@@ -39,7 +39,7 @@ class StreamingSandboxSession:
                 raise RuntimeError("Neither Docker nor Podman are available. Please install and start one of them.")
     
     def _initialize_session(self, container_type, image, dockerfile, keep_template, 
-                           verbose, runtime_configs, **kwargs):
+                        verbose, runtime_configs, **kwargs):
         """Initialize the appropriate container session."""
         if self.verbose:
             print(f"Using {container_type} as container runtime")
@@ -60,6 +60,20 @@ class StreamingSandboxSession:
                 podman_image = f"docker.io/library/{image}"
                 if verbose:
                     print(f"Using fully qualified image name for Podman: {podman_image}")
+                
+                # Get image ID from CLI if available
+                import subprocess
+                try:
+                    result = subprocess.run(
+                        ["podman", "images", "--quiet", podman_image],
+                        capture_output=True, text=True, check=True
+                    )
+                    image_id = result.stdout.strip()
+                    if image_id:
+                        print(f"Found image with ID: {image_id}, using ID directly")
+                        podman_image = image_id
+                except Exception as e:
+                    print(f"Note: Couldn't get image ID, will try with name: {e}")
                     
             self.session = SandboxPodmanSession(
                 image=podman_image,
