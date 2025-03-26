@@ -1,24 +1,13 @@
 from llm_sandbox.docker import SandboxDockerSession
 from llm_sandbox.podman import SandboxPodmanSession
 import os
+import subprocess
+import json
 
 class StreamingSandboxSession:
     def __init__(self, image=None, dockerfile=None, keep_template=False, 
                  stream=True, verbose=True, runtime_configs=None, 
                  container_type=None, **kwargs):
-        """
-        Create a streaming sandbox session with either Docker or Podman.
-        
-        Args:
-            image: Container image to use
-            dockerfile: Path to Dockerfile (alternative to image)
-            keep_template: Whether to keep the image after session is closed
-            stream: Whether to stream output
-            verbose: Whether to print verbose output
-            runtime_configs: Additional configurations for the container
-            container_type: Force a specific container type ('docker' or 'podman')
-            **kwargs: Additional arguments to pass to the container session
-        """
         self.verbose = verbose
         self.session = None
         
@@ -39,8 +28,7 @@ class StreamingSandboxSession:
                 raise RuntimeError("Neither Docker nor Podman are available. Please install and start one of them.")
     
     def _initialize_session(self, container_type, image, dockerfile, keep_template, 
-                        verbose, runtime_configs, **kwargs):
-        """Initialize the appropriate container session."""
+                           verbose, runtime_configs, **kwargs):
         if self.verbose:
             print(f"Using {container_type} as container runtime")
             
@@ -54,56 +42,64 @@ class StreamingSandboxSession:
                 **kwargs
             )
         elif container_type == 'podman':
-            # For Podman, create client with correct URI
-            from podman import PodmanClient
-            import os
-            
-            # Use custom URI based on your storage location
-            uri = f"unix:/tmp/lf37cyti/podman-storage/podman/podman.sock"
-            custom_client = None
-            try:
-                custom_client = PodmanClient(uri)
-                custom_client.info()  # Test if it works
-            except Exception:
-                custom_client = None
-                
-            # Set podman image name
+            # For Podman, use direct image ID lookup
             podman_image = image
             if image and not dockerfile and '/' not in image:
+                # Use fully qualified image name for podman
                 podman_image = f"docker.io/library/{image}"
                 if verbose:
                     print(f"Using fully qualified image name for Podman: {podman_image}")
                 
-                # Get image ID for direct lookup
-                import subprocess
-                try:
-                    result = subprocess.run(
-                        ["podman", "images", "--quiet", podman_image],
-                        capture_output=True, text=True, check=True
-                    )
-                    image_id = result.stdout.strip()
-                    if image_id and verbose:
-                        print(f"Found image with ID: {image_id}, using ID directly")
-                except Exception as e:
+                # Get image ID directly using CLI for more reliable operation
+                image_id = get_podman_image_id(podman_image, verbose)
+                if image_id:
                     if verbose:
-                        print(f"Note: Couldn't get image ID: {e}")
-                    
+                        print(f"Using image ID directly: {image_id}")
+                    podman_image = image_id
+                elif verbose:
+                    print("Image ID not found, will try pulling during session initialization")
+            
             self.session = SandboxPodmanSession(
                 image=podman_image,
                 dockerfile=dockerfile,
                 keep_template=keep_template,
                 verbose=verbose,
                 runtime_configs=runtime_configs,
-                client=custom_client,
                 **kwargs
             )
+        else:
+            raise ValueError(f"Unknown container type: {container_type}")
 
-    # Delegate methods to the underlying session
     def open(self):
-        return self.session.open()
+        if not self.session:
+            raise RuntimeError("Session not initialized")
+        
+        try:
+            return self.session.open()
+        except Exception as e:
+            if hasattr(self.session, 'image') and isinstance(self.session, SandboxPodmanSession):
+                # Handle podman-specific errors
+                if "image not known" in str(e) and isinstance(self.session.image, str):
+                    if self.verbose:
+                        print(f"Image not found. Attempting to pull: {self.session.image}")
+                    try:
+                        # Try pulling with CLI
+                        result = subprocess.run(
+                            ["podman", "pull", self.session.image],
+                            capture_output=True, text=True, check=True
+                        )
+                        if self.verbose:
+                            print(result.stdout)
+                        
+                        # Try again after pull
+                        return self.session.open()
+                    except Exception as pull_error:
+                        print(f"Failed to pull image: {pull_error}")
+                        raise e
+            raise e
     
     def close(self):
-        return self.session.close()
+        return self.session.close() if self.session else None
     
     def execute_command(self, command, workdir=None):
         return self.session.execute_command(command, workdir)
@@ -115,7 +111,6 @@ class StreamingSandboxSession:
         return self.session.copy_from_runtime(src, dest)
     
     def execute_command_streaming(self, command, workdir=None):
-        """Stream command output from container."""
         if not self.session:
             raise RuntimeError("Session is not open")
         
@@ -123,13 +118,47 @@ class StreamingSandboxSession:
         if workdir:
             kwargs["workdir"] = workdir
             
-        if isinstance(self.session, SandboxDockerSession):
-            _, output_stream = self.session.container.exec_run(command, **kwargs)
-        else:  # PodmanSession
-            _, output_stream = self.session.container.exec_run(command, **kwargs)
+        _, output_stream = self.session.container.exec_run(command, **kwargs)
         
         for chunk in output_stream:
             yield chunk.decode("utf-8")
+
+def get_podman_image_id(image_name, verbose=False):
+    """Get Podman image ID using CLI."""
+    try:
+        result = subprocess.run(
+            ["podman", "images", "--format", "{{.ID}}", image_name],
+            capture_output=True, text=True, check=False
+        )
+        image_id = result.stdout.strip()
+        
+        if not image_id and verbose:
+            print(f"Image {image_name} not found with exact name, checking repositories...")
+            
+            # Check all images
+            result = subprocess.run(
+                ["podman", "images", "--format", "json"],
+                capture_output=True, text=True, check=False
+            )
+            
+            try:
+                images = json.loads(result.stdout)
+                for img in images:
+                    # Check for name match in different formats
+                    if image_name in str(img.get('names', [])):
+                        image_id = img.get('id', '')
+                        if verbose:
+                            print(f"Found image with ID: {image_id}")
+                        break
+            except json.JSONDecodeError:
+                if verbose:
+                    print("Failed to parse image list JSON")
+        
+        return image_id
+    except Exception as e:
+        if verbose:
+            print(f"Error getting image ID: {e}")
+        return None
 
 def check_docker_running():
     """Check if Docker is running and available."""
@@ -149,20 +178,28 @@ def check_docker_running():
 def check_podman_running():
     """Check if Podman is running and available."""
     try:
-        from podman import PodmanClient
-        import os
+        # Check podman availability using CLI first (more reliable)
+        result = subprocess.run(
+            ["podman", "info", "--format", "{{.Host.RemoteSocket.Path}}"],
+            capture_output=True, text=True, check=False
+        )
         
-        # Use the same URI pattern as podman CLI with your custom storage
-        uri = f"unix:/tmp/lf37cyti/podman-storage/podman/podman.sock"
-        client = PodmanClient(uri)
-        try:
-            client.info()
-            return True
-        except Exception:
-            # Try default socket path if custom fails
-            client = PodmanClient()
-            client.info()
-            return True
+        if result.returncode != 0:
+            # Try basic command
+            result = subprocess.run(
+                ["podman", "info"],
+                capture_output=True, text=True, check=False
+            )
+            
+        if result.returncode != 0:
+            print("Podman command failed. Is podman installed?")
+            return False
+        
+        # Now try with Python API
+        from podman import PodmanClient
+        client = PodmanClient()
+        client.info()
+        return True
     except (ImportError, Exception) as e:
         if isinstance(e, ImportError):
             print("Podman Python package not installed. Unable to use Podman.")
