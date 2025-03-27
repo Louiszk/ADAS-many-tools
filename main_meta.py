@@ -105,7 +105,8 @@ def main():
             print("Finished successfully!")
         else:
             print("Failed to set up sandbox environment")
-
+    except Exception as e:
+        print(repr(e))
     finally:
         print("Session closed.")
         session.close()
