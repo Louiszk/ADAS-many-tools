@@ -75,7 +75,7 @@ def build_system():
                 state: A python dictionary with state attributes e.g. {'messages': ['Test Input'], 'attr2': [3, 5]}
         """
         all_outputs = []
-        error_message = ""
+        error_message = None
     
         try:
             with open(target_system_file, 'r') as f:

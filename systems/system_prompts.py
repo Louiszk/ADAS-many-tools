@@ -1,15 +1,17 @@
 file_content_prompt = """
-Return the complete file content. The content you provide will completely replace the existing content of the target file.
+Return the complete file content in a single string. 
+The content you provide will completely replace the existing content of the target file.
+Do not get lazy, do not remove important parts of the implementation.
+Do not use any placeholders.
 The whole file_content MUST be wrapped inside triple quotes '''!
 
 Make sure your file includes:
 - All necessary imports at the top
-- All required function, class, and variable definitions
-- All node and edge configurations
+- class AgentState and initialization of StateGraph
+- All tool, node and edge configurations
 - Entry/exit point configurations
 - Proper indentation and formatting
 
-DO NOT GET LAZY!
 The user's system expects a fully functional file that can run without errors.
 """
 
@@ -170,7 +172,6 @@ For each step of the implementation process:
 
 ### Tool Call Format
 You need to output tool calls using the exact format, including '```tool_calls' and '```end':
-
 ```tool_calls
 tool_name1(param1="value1", param2="value2", ...)
 tool_name2(param1="value1", param2="value2", ...)
