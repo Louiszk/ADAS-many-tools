@@ -52,14 +52,9 @@ def main():
     
     args = parser.parse_args()
     
-    if not check_docker_running():
-        print("Docker is not running. Please start Docker and try again.")
-        return
-    
     session = StreamingSandboxSession(
         image="python:3.11-slim",
         keep_template=args.keep_template,
-        stream=True,
         verbose=True
     )
     
