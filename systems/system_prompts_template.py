@@ -1,6 +1,5 @@
 chain_of_thought = '''
 Use explicit chain-of-thought reasoning to think through it step by step. 
-Wrap this reasoning in <thinking> </thinking> tags, before making the tool calls.
 '''
 
 CoT = True

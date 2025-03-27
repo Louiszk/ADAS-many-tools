@@ -23,7 +23,8 @@ def build_system():
         system_prompt = """
             You will solve multiple-choice questions in computer science.
             
-            Each question comes with a list of options. Think step by step and select the best option that answers the question.
+            Each question comes with a list of options. Select the best option that answers the question.
+            Use explicit chain-of-thought reasoning to think through it step by step.
             
             Write your final answer only as a single letter (A, B, C, ..., J) on the last line.
             e.g. The answer is X

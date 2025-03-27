@@ -160,7 +160,6 @@ All function code MUST be wrapped inside triple quotes \'\'\'!
 Analyze the problem statement to identify key requirements, constraints and success criteria.
 
 Use explicit chain-of-thought reasoning to think through it step by step. 
-Wrap this reasoning in <thinking> </thinking> tags, before making the tool calls.
 
 
 ### **IMPORTANT WORKFLOW RULES**:

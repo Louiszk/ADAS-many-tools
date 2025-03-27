@@ -60,10 +60,9 @@ def build_system():
             - REFUTES: The claim contradicts factual evidence
             - NOT ENOUGH INFO: There is insufficient evidence to determine if the claim is supported or refuted
             
-            Write your final prediction in the last line using exactly one of these three labels: SUPPORTS, REFUTES, or NOT ENOUGH INFO.
+            You get information from a web search. However, this web search alone may not be sufficient to properly evaluate the claim.
             
-            You get information from a web search. If this web search is not informative, it does not automatically mean NOT ENOUGH INFO.
-            If the information from the web search is not sufficient to classify the claim, you decide based on your knowledge.
+            Write your final prediction in the last line using exactly one of these three labels: SUPPORTS, REFUTES, or NOT ENOUGH INFO.    
         """
 
         search_content = "\nWebsearch results: " + state['search_results']
