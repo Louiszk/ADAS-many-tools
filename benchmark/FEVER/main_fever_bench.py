@@ -22,6 +22,9 @@ def run_fever_benchmark_in_sandbox(session, system_name, dataset_name="fever_sub
     session.copy_to_runtime(f"{base_path}/{dataset_name}", f"/sandbox/workspace/{base_path}/{dataset_name}")
     session.copy_to_runtime(system_path, f"/sandbox/workspace/{system_path}")
     
+    if "not found" in str(session.execute_command("pip show beautifulsoup4")):
+        session.execute_command("pip install beautifulsoup4")
+    
     # Run the benchmark
     command = f"python3 /sandbox/workspace/{base_path}/run_fever_bench.py --system=\"{system_name}\""
     print(f"Executing command: {command}")

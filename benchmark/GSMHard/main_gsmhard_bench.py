@@ -23,8 +23,8 @@ def run_gsmhard_benchmark_in_sandbox(session, system_name):
     session.copy_to_runtime(f"{base_path}/GSMHardExecBaseline.py", f"/sandbox/workspace/{base_path}/GSMHardExecBaseline.py")
     session.copy_to_runtime(system_path, f"/sandbox/workspace/{system_path}")
     
-    # Install required packages
-    # session.execute_command(f"pip install datasets")
+    if "not found" in str(session.execute_command("pip show datasets")):
+        session.execute_command("pip install datasets")
     
     # Run the benchmark
     command = f"python3 /sandbox/workspace/{base_path}/run_gsmhard_bench.py --system=\"{system_name}\""
