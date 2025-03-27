@@ -42,7 +42,7 @@ def execute_problem(problem_item, system_path):
             "category": problem_item["category"]
         }
 
-def run_benchmark_parallel(system_path, max_workers=None):
+def run_benchmark_parallel(system_path, max_workers=4):
     """Run the MMLU-Pro benchmark with parallel execution."""
     print(f"Running benchmark for: {system_path}")
     

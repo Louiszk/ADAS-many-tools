@@ -45,7 +45,7 @@ def execute_problem(problem_item, system_path):
             "is_correct": False,
         }
 
-def run_benchmark_parallel(system_path, max_workers=None):
+def run_benchmark_parallel(system_path, max_workers=4):
     """Run the GSM-Hard benchmark with parallel execution."""
     print(f"Running benchmark for: {system_path}")
     
