@@ -217,9 +217,9 @@ change_code(diff=\'\'\'
 \'\'\'
 )
 ```end
-
+    
 Make sure to properly escape backslashes and other special characters inside tool call parameters to avoid syntax errors or unintended behavior.
-The tools you call will be executed directly in the order you specify. If a tool fails, all subsequent tool calls are not executed.
+The tools you call will be executed directly in the order you specify.
 Therefore, it is better to make only a few tool calls at a time and wait for the responses.
 
 Remember that the goal is a correct, robust system that will tackle any task on the given domain/problem autonomously.
