@@ -21,3 +21,16 @@ alias-trustllm,
 gpt-3.5-turbo, 
 text-davinci-003, 
 text-embedding-ada-002
+
+Available models:
+
+Qwen/Qwen2-VL-7B-Instruct
+deepseek-ai/DeepSeek-R1-Distill-Qwen-32B
+deepseek-ai/DeepSeek-R1
+openGPT-X/Teuken-7B-instruct-research-v0.4
+meta-llama/Llama-3.3-70B-Instruct
+CohereForAI/c4ai-command-r-08-2024
+Alibaba-NLP/gte-Qwen2-1.5B-instruct
+tts-1-hd
+en-de-translator
+deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct

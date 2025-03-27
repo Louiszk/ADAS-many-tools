@@ -43,6 +43,7 @@ def get_model(wrapper, model_name, temperature):
         "google": "GOOGLE_API_KEY",
         "openai": "OPENAI_API_KEY",
         "blablador": "HELMHOLTZ_API_KEY",
+        "scads": "SCADS_API_KEY",
         "perplexity": "PERPLEXITY_API_KEY"
     }
     
@@ -71,6 +72,12 @@ def get_model(wrapper, model_name, temperature):
                     temperature=temperature,
                     api_key=api_key,
                     base_url="https://helmholtz-blablador.fz-juelich.de:8000/v1"
+                ),
+            "scads": ChatOpenAI(
+                    model=model_name,
+                    temperature=temperature,
+                    api_key=api_key,
+                    base_url="https://llm.scads.ai/v1"
                 ),
             "perplexity": ChatOpenAI(
                     model="sonar",
