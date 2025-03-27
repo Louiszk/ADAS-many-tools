@@ -31,8 +31,7 @@ This will help you generate correct code and correct diffs.
 """
 
 chain_of_thought = """
-Use explicit chain-of-thought reasoning to think through it step by step. 
-Wrap this reasoning in <thinking> </thinking> tags, before making the tool calls.
+Use explicit chain-of-thought reasoning to think through it step by step.
 """
 
 CoT = True
@@ -64,7 +63,7 @@ def tool_function(arg1: str, arg2: int, ...) -> List[Any]:
     return result
 
 # Important: Add tool to tools dictionary to use it in nodes
-tools["execute_python_code"] = tool(runnable=execute_python_code_function, name_or_callable="execute_python_code")
+tools["Tool1"] = tool(runnable=tool_function, name_or_callable="Tool1")
 ```
 
 Tools are NOT nodes in the graph - they are invoked directly by agents when needed.
