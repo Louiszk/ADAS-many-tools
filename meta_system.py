@@ -425,15 +425,15 @@ def create_meta_system():
     )
     
     def meta_agent_function(state: Dict[str, Any]) -> Dict[str, Any]:  
-        llm = LargeLanguageModel(temperature=0.4, model_name="gemini-2.0-flash", wrapper="google")
-        context_length = 6*2 # even
+        llm = LargeLanguageModel(temperature=0.2)
+        context_length = 8*2 # even
         messages = state.get("messages", [])
-        initial_message, current_messages = messages[0], messages[1:]
+        initial_messages, current_messages = messages[:2], messages[2:]
         last_messages = current_messages[-context_length:] if len(current_messages) >= context_length else current_messages
 
         code_message = "Current Code:\n" + materialize_system(target_system, output_dir=None)
 
-        full_messages = [SystemMessage(content=system_prompts.meta_agent), initial_message] + last_messages + [HumanMessage(content=code_message)]
+        full_messages = [SystemMessage(content=system_prompts.meta_agent)] + initial_messages + last_messages + [HumanMessage(content=code_message)]
         response = llm.invoke(full_messages)
         
         # Extract tool calls

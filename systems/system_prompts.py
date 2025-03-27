@@ -94,7 +94,7 @@ def router_function(state):
 
 ### Available tools include:
     - set_state_attributes(attributes: Dict):
-    Defines state attributed accessible throughout the system. Only defines the type annotations, not the values.
+    Defines state attributes accessible throughout the system. Only defines the type annotations, not the values.
     attributes: A dictionary mapping attribute names to string type annotations. 
     {'messages': 'List[Any]'} is the default and will be set automatically.
 
@@ -166,6 +166,7 @@ Wrap this reasoning in <thinking> </thinking> tags, before making the tool calls
 ### **IMPORTANT WORKFLOW RULES**:
 - First set the necessary state attributes, other attributes cannot be accessed
 - Always test before ending the design process
+- Only execute end_design if everything is working
 - Set workflow endpoints before testing
 - All functions should be defined with 'def', do not use lambda functions.
 - The directed graph should NOT include dead ends or endless loops, where it is not possible to reach the finish point
@@ -201,7 +202,7 @@ def agent_node(state):
 ```end
 
 Make sure to properly escape backslashes, and other special characters inside tool call parameters to avoid syntax errors or unintended behavior.
-The tools you call will be executed directly in the order you specify. If a tool fails, all subsequent tool calls are not executed.
+The tools you call will be executed directly in the order you specify.
 Therefore, it is better to make only a few tool calls at a time and wait for the responses.
 
 Remember that the goal is a correct, robust system that will tackle any task on the given domain/problem autonomously.

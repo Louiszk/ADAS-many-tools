@@ -64,6 +64,13 @@ def main():
     
     args = parser.parse_args()
     print(args)
+
+
+    if args.materialize:
+        create_meta_system()
+    if not os.path.exists("systems/MetaSystem.py"):
+        print("Error: MetaSystem.py not found")
+        return
     
     # Determine container type
     container_type = None
