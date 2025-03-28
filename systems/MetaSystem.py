@@ -75,7 +75,7 @@ def build_system():
                 state: A python dictionary with state attributes e.g. {'messages': ['Test Input'], 'attr2': [3, 5]}
         """
         all_outputs = []
-        error_message = ""
+        error_message = None
     
         try:
             with open(target_system_file, 'r') as f:
@@ -126,68 +126,21 @@ def build_system():
     tools["TestSystem"] = tool(runnable=test_system, name_or_callable="TestSystem")
 
     # Tool: ChangeCode
-    # Description: Modifies the target system file using a diff
-    def change_code(diff: str) -> str:
+    # Description: Updates the target system file with the provided content
+    def change_code(file_content: str) -> str:
         """
-            Modifies the target system file using a unified diff.
-                diff: A unified diff string representing the changes to make to the target system file.
+            Updates the target system file with the provided content.
+                file_content: The complete content to write to the target system file.
         """
         try:
-            from agentic_system.udiff import find_diffs, do_replace, hunk_to_before_after, no_match_error, SearchTextNotUnique
-
-            with open(target_system_file, 'r') as f:
-                content = f.read()
-
-            edits = find_diffs(diff)
-
-            if not edits:
-                print(no_match_error)
-                return no_match_error
-
-            success = False
-            failed_hunks = []
-
-            for _, hunk in edits:
-                try:
-                    # Apply the diff
-                    new_content = do_replace(target_system_file, content, hunk)
-                    if new_content is not None:
-                        content = new_content
-                        success = True
-                    else:
-                        # failed hunks for debugging
-                        before_text, _ = hunk_to_before_after(hunk)
-                        failed_hunks.append({
-                            "before_text": before_text[:150] + ("..." if len(before_text) > 150 else ""),
-                            "hunk_lines": len(hunk),
-                            "error": "no_match"
-                        })
-                except SearchTextNotUnique:
-                    before_text, _ = hunk_to_before_after(hunk)
-                    failed_hunks.append({
-                        "before_text": before_text[:150] + ("..." if len(before_text) > 150 else ""),
-                        "hunk_lines": len(hunk),
-                        "error": "not_unique"
-                    })
-
-            if not success:
-                error_msg = f"Error: Failed to apply diffs to the system.\n"
-
-                for i, failed in enumerate(failed_hunks):
-                    if failed.get("error") == "not_unique":
-                        error_msg += f"Hunk #{i+1} matched multiple locations:\n```\n{failed['before_text']}\n```\n"
-                    else:
-                        error_msg += f"Hunk #{i+1} failed to match:\n```\n{failed['before_text']}\n```\n"
-
-                print(error_msg)
-                return (error_msg)
-
             with open(target_system_file, 'w') as f:
-                f.write(content)
-
-            print("Successfully applied diff to the system.")
+                f.write(file_content)
+            print("Successfully updated the system file.")
+            return "Successfully updated the system file."
         except Exception as e:
-            print(f"Error applying diff: {repr(e)}")
+            error_msg = f"Error updating system file: {repr(e)}"
+            print(error_msg)
+            return error_msg
 
     tools["ChangeCode"] = tool(runnable=change_code, name_or_callable="ChangeCode")
 

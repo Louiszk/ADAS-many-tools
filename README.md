@@ -1,8 +1,6 @@
 # Automated Design of Agentic Systems
 
-Second version using unified diffs, with the help of:
-
-[https://github.com/Aider-AI/aider/blob/main/aider/coders/udiff_coder.py](https://github.com/Aider-AI/aider/blob/main/aider/coders/udiff_coder.py)
+Third version just overwriting the whole target system file in each iteration.
 
 ## Quick Setup
 
