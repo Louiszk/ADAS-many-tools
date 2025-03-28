@@ -97,7 +97,7 @@ def router_function(state):
 - Custom state attributes can be defined with type annotations
 - State is accessible to all components throughout execution
 
-### Available tools include:
+### Use these tools to design the agentic system:
 <Tools>
 
 All function code MUST be wrapped inside triple quotes \\'\\'\\'!
@@ -108,7 +108,7 @@ Analyze the problem statement to identify key requirements, constraints and succ
 ### **IMPORTANT WORKFLOW RULES**:
 - First set the necessary state attributes, other attributes cannot be accessed
 - Always test before ending the design process
-- Only execute end_design if everything is working
+- Only end the design process when all tests work
 - Set workflow endpoints before testing
 - All functions should be defined with 'def', do not use lambda functions.
 - The directed graph should NOT include dead ends or endless loops, where it is not possible to reach the finish point
@@ -120,7 +120,7 @@ For each step of the implementation process:
 - Carefully consider the implications of using that tool
 
 ### Tool Call Format
-You need to output tool calls using the exact format, including 'tool_calls' and 'end':
+You need to output tool calls using the exact format, including '```tool_calls' and '```end':
 
 ```tool_calls
 tool_name1(param1="value1", param2="value2", ...)

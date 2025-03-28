@@ -296,16 +296,14 @@ def create_meta_system():
 
         try:
             if not (target_system.entry_point and target_system.finish_point):
-                print("Error testing system: You must set an entry point and finish point before testing")
-                return None
+                raise Exception("You must set an entry point and finish point before testing")
 
             source_code = materialize_system(target_system, None)
             namespace = {}
             exec(source_code, namespace, namespace)
             
             if 'build_system' not in namespace:
-                print("Error: Could not find build_system function in generated code")
-                return None
+                raise Exception("Could not find build_system function in generated code")
                 
             target_workflow, _ = namespace['build_system']()
             pbar = tqdm(desc="Testing the System")
@@ -329,13 +327,16 @@ def create_meta_system():
             pbar.close()
 
         except Exception as e:
-            error_message = f"\n\n Error while testing the system:\n{repr(e)}"
+            error_message = f"\n\n Error while testing the system:\n{str(e)}"
 
         result = all_outputs if all_outputs else {}
 
         test_result = f"Test completed.\n <TestResults>\n{result}\n</TestResults>"
 
-        print(test_result + error_message)
+        print(test_result)
+
+        if error_message:
+            raise Exception(error_message)
 
     meta_system.create_tool(
         "TestSystem",
@@ -425,7 +426,7 @@ def create_meta_system():
     )
     
     def meta_agent_function(state: Dict[str, Any]) -> Dict[str, Any]:  
-        llm = LargeLanguageModel(temperature=0.2)
+        llm = LargeLanguageModel(temperature=0.2, wrapper="blablador", model_name="2 - Llama 3.3 70B instruct")
         context_length = 8*2 # even
         messages = state.get("messages", [])
         initial_messages, current_messages = messages[:2], messages[2:]
@@ -481,18 +482,19 @@ def create_meta_system():
                 
                 tool_results.append(output or "Tool call executed successfully.")
             except Exception as e:
-                error_message = f"Error executing tool call: {repr(e)}"
-                tool_results.append(error_message)
+                output = string_io.getvalue().strip()
+                error_message = f"\nError executing tool call: {repr(e)}"
+                tool_results.append(output + error_message)
                 break
         
         if tool_results:
             tool_output = "\n\n".join(tool_results)
             tool_response = f"\n\nTool Execution Results:\n{tool_output}"
-            
-            tool_message = HumanMessage(content=tool_response)
-            updated_messages = messages + [response, tool_message]
-        else:
-            updated_messages = messages + [response]
+        else: 
+            tool_response = "You made no tool calls. Maybe you forget to wrap the tool calls inside ```tool_calls\n```end"
+    
+        tool_message = HumanMessage(content=tool_response)
+        updated_messages = messages + [response, tool_message]
         
         new_state = {"messages": updated_messages, "design_completed": design_completed}
         return new_state

@@ -71,12 +71,14 @@ def get_model(wrapper, model_name, temperature):
                     model=model_name,
                     temperature=temperature,
                     api_key=api_key,
+                    cache=False,
                     base_url="https://helmholtz-blablador.fz-juelich.de:8000/v1"
                 ),
             "scads": ChatOpenAI(
                     model=model_name,
                     temperature=temperature,
                     api_key=api_key,
+                    cache=False,
                     base_url="https://llm.scads.ai/v1"
                 ),
             "perplexity": ChatOpenAI(
