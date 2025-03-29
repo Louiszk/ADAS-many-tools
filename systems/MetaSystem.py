@@ -1,26 +1,24 @@
 # MetaSystem System Configuration
-# Total nodes: 2
-# Total tools: 14
+# Total nodes: 1
+# Total tools: 4
 
 from langgraph.graph import StateGraph
-import os
 from langchain_core.tools import tool
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage
 from typing import Dict, List, Any, Callable, Optional, Union, TypeVar, Generic, Tuple, Set, TypedDict
 from agentic_system.large_language_model import LargeLanguageModel, execute_tool_calls
-import json
 from tqdm import tqdm
 import traceback
-import dill as pickle
 import re
 import io
 import contextlib
 import sys
 import subprocess
 from systems import system_prompts
-from agentic_system.materialize import materialize_system
-target_system = None
 
+# Target system file path
+target_system_file = "/sandbox/workspace/automated_systems/target_system.py"
+target_system_name = "DefaultSystem"
 
 def build_system():
     # Define state attributes for the system
@@ -69,209 +67,6 @@ def build_system():
 
     tools["PipInstall"] = tool(runnable=pip_install, name_or_callable="PipInstall")
 
-    # Tool: AddImports
-    # Description: Adds custom import statements to the target system
-    def add_imports(import_statement: str) -> str:
-        """
-            Adds custom imports to the target system.
-                import_statement: A string containing import statements e.g. "from x import y"
-        """
-        try:
-            target_system.add_imports(import_statement.strip())
-            print(f"Import statement '{import_statement}' added to target system.")
-        except Exception as e:
-            print(f"Error adding import: {repr(e)}")
-    
-
-    tools["AddImports"] = tool(runnable=add_imports, name_or_callable="AddImports")
-
-    # Tool: SetStateAttributes
-    # Description: Sets state attributes with type annotations for the target system
-    def set_state_attributes(attributes: Dict[str, str]) -> str:
-        """
-            Defines state attributes accessible throughout the system. Only defines the type annotations, not the values.
-                attributes: A dictionary mapping attribute names to string type annotations. 
-                {'messages': 'List[Any]'} is the default and will be set automatically.
-        """
-        try:
-            target_system.set_state_attributes(attributes)
-            print(f"State attributes set successfully: {attributes}")
-        except Exception as e:
-            print(f"Error setting state attributes: {repr(e)}")
-    
-
-    tools["SetStateAttributes"] = tool(runnable=set_state_attributes, name_or_callable="SetStateAttributes")
-
-    # Tool: CreateNode
-    # Description: Creates a node in the target system with custom function implementation
-    def add_node(name: str, description: str, function_code: str) -> str:
-        """
-            Creates a node in the target system.
-                function_code: Python code defining the node's processing function
-        """
-        try:
-            node_function = target_system.get_function(function_code)
-    
-            target_system.create_node(name, node_function, description, function_code)
-            print(f"Node '{name}' created successfully")
-        except Exception as e:
-            print(f"Error creating node: {repr(e)}")
-    
-
-    tools["CreateNode"] = tool(runnable=add_node, name_or_callable="CreateNode")
-
-    # Tool: CreateTool
-    # Description: Creates a tool in the target system that can be used by nodes
-    def add_tool(name: str, description: str, function_code: str) -> str:
-        """
-            Creates a tool in the target system that can be bound to agents and invoked by functions.
-                function_code: Python code defining the tool's function including type annotations and a clear docstring
-        """
-        try:
-            tool_function = target_system.get_function(function_code)
-    
-            target_system.create_tool(name, description, tool_function, function_code)
-            print(f"Tool '{name}' created successfully")
-        except Exception as e:
-            print(f"Error creating tool: {repr(e)}")
-    
-
-    tools["CreateTool"] = tool(runnable=add_tool, name_or_callable="CreateTool")
-
-    # Tool: EditComponent
-    # Description: Edits a node or tool's implementation
-    def edit_component(component_type: str, name: str, new_function_code: str, new_description: Optional[str] = None) -> str:
-        """
-            Modifies an existing node or tool's implementation by providing a new_function_code. This does not allow renaming.
-                component_type: Type of component to edit ('node' or 'tool')
-                name: Name of the component to edit
-                new_function_code: New Python code for the component's function
-        """
-        try:
-            if component_type.lower() not in ["node", "tool"]:
-                print(f"Error: Invalid component type '{component_type}'. Must be 'node' or 'tool'.")
-                return None
-    
-            if name not in target_system.nodes and name not in target_system.tools:
-                print(f"Error: '{name}' not found")
-                return None
-    
-            new_function = target_system.get_function(new_function_code)
-    
-            if component_type.lower() == "node":
-                if name not in target_system.nodes:
-                    print(f"Error: Node '{name}' not found")
-                    return None
-    
-                target_system.edit_node(name, new_function, new_description, new_function_code)
-                print(f"Node '{name}' updated successfully")
-    
-            else:
-                if name not in target_system.tools:
-                    print(f"Error: Tool '{name}' not found")
-                    return None
-    
-                target_system.edit_tool(name, new_function, new_description, new_function_code)
-                print(f"Tool '{name}' updated successfully")
-    
-        except Exception as e:
-            print(f"Error editing {component_type}: {repr(e)}")
-    
-
-    tools["EditComponent"] = tool(runnable=edit_component, name_or_callable="EditComponent")
-
-    # Tool: AddEdge
-    # Description: Adds an edge between nodes in the target system
-    def add_edge(source: str, target: str) -> str:
-        """
-            Adds an edge between nodes in the target system.
-                source: Name of the source node
-                target: Name of the target node
-        """
-        try:
-            target_system.create_edge(source, target)
-            print(f"Edge from '{source}' to '{target}' added successfully")
-        except Exception as e:
-            print(f"Error adding edge: {repr(e)}")
-    
-
-    tools["AddEdge"] = tool(runnable=add_edge, name_or_callable="AddEdge")
-
-    # Tool: AddConditionalEdge
-    # Description: Adds a conditional edge in the target system.
-    def add_conditional_edge(source: str, condition_code: str) -> str:
-        """
-            Adds a conditional edge from a source node.
-                source: Name of the source node
-                condition_code: Python code for the condition function that returns the target node
-        """
-        try:
-            condition_function = target_system.get_function(condition_code)
-    
-            # Extract potential node names from string literals in the code (better visualization)
-            string_pattern = r"['\"]([^'\"]*)['\"]"
-            potential_nodes = set(re.findall(string_pattern, condition_code))
-    
-            path_map = None
-            auto_path_map = {}
-            for node_name in potential_nodes:
-                if node_name in target_system.nodes:
-                    auto_path_map[node_name] = node_name
-    
-            if auto_path_map:
-                path_map = auto_path_map
-    
-            target_system.create_conditional_edge(
-                source = source, 
-                condition = condition_function,
-                condition_code = condition_code,
-                path_map = path_map
-            )
-    
-            result = f"Conditional edge from '{source}' added successfully"
-            if path_map:
-                result += f" with path map to {list(path_map.values())}"
-    
-            print(result)
-        except Exception as e:
-            print(f"Error adding conditional edge: {repr(e)}")
-    
-
-    tools["AddConditionalEdge"] = tool(runnable=add_conditional_edge, name_or_callable="AddConditionalEdge")
-
-    # Tool: SetEndpoints
-    # Description: Sets the entry point and/or finish point of the workflow
-    def set_endpoints(entry_point: str = None, finish_point: str = None) -> str:
-        """
-            Sets the entry point (start node) and/or finish point (end node) of the workflow.
-                entry_point: Name of the node to set as entry point
-                finish_point: Name of the node to set as finish point
-        """
-        results = []
-    
-        if entry_point is not None:
-            try:
-                target_system.set_entry_point(entry_point)
-                results.append(f"Entry point set to '{entry_point}' successfully")
-            except Exception as e:
-                results.append(f"Error setting entry point: {repr(e)}")
-    
-        if finish_point is not None:
-            try:
-                target_system.set_finish_point(finish_point)
-                results.append(f"Finish point set to '{finish_point}' successfully")
-            except Exception as e:
-                results.append(f"Error setting finish point: {repr(e)}")
-    
-        if not results:
-            print("No endpoints were specified. Please provide entry_point and/or finish_point.")
-            return None
-    
-        print("\n".join(results))
-    
-
-    tools["SetEndpoints"] = tool(runnable=set_endpoints, name_or_callable="SetEndpoints")
-
     # Tool: TestSystem
     # Description: Tests the target system with a given state
     def test_system(state: Dict[str, Any]) -> str:
@@ -283,10 +78,11 @@ def build_system():
         error_message = ""
     
         try:
-            if not (target_system.entry_point and target_system.finish_point):
+            with open(target_system_file, 'r') as f:
+                source_code = f.read()
+            if "set_entry_point" not in source_code or "set_finish_point" not in source_code:
                 raise Exception("You must set an entry point and finish point before testing")
     
-            source_code = materialize_system(target_system, None)
             namespace = {}
             exec(source_code, namespace, namespace)
     
@@ -329,54 +125,71 @@ def build_system():
 
     tools["TestSystem"] = tool(runnable=test_system, name_or_callable="TestSystem")
 
-    # Tool: DeleteNode
-    # Description: Deletes a node and all its associated edges from the target system
-    def delete_node(node_name: str) -> str:
+    # Tool: ChangeCode
+    # Description: Modifies the target system file using a diff
+    def change_code(diff: str) -> str:
         """
-            Deletes a node and all its associated edges.
-                node_name: Name of the node to delete
-        """
-        try:
-            result = target_system.delete_node(node_name)
-            print(f"Node '{node_name}' deleted successfully" if result else f"Failed to delete node '{node_name}'")
-        except Exception as e:
-            print(f"Error deleting node: {repr(e)}")
-    
-
-    tools["DeleteNode"] = tool(runnable=delete_node, name_or_callable="DeleteNode")
-
-    # Tool: DeleteEdge
-    # Description: Deletes an edge between nodes in the target system
-    def delete_edge(source: str, target: str) -> str:
-        """
-            Deletes an edge between nodes.
-                source: Name of the source node
-                target: Name of the target node
+            Modifies the target system file using a unified diff.
+                diff: A unified diff string representing the changes to make to the target system file.
         """
         try:
-            result = target_system.delete_edge(source, target)
-            print(f"Edge from '{source}' to '{target}' deleted successfully" if result else f"No such edge from '{source}' to '{target}'")
+            from agentic_system.udiff import find_diffs, do_replace, hunk_to_before_after, no_match_error, SearchTextNotUnique
+
+            with open(target_system_file, 'r') as f:
+                content = f.read()
+
+            edits = find_diffs(diff)
+
+            if not edits:
+                print(no_match_error)
+                return no_match_error
+
+            success = False
+            failed_hunks = []
+
+            for _, hunk in edits:
+                try:
+                    # Apply the diff
+                    new_content = do_replace(target_system_file, content, hunk)
+                    if new_content is not None:
+                        content = new_content
+                        success = True
+                    else:
+                        # failed hunks for debugging
+                        before_text, _ = hunk_to_before_after(hunk)
+                        failed_hunks.append({
+                            "before_text": before_text[:150] + ("..." if len(before_text) > 150 else ""),
+                            "hunk_lines": len(hunk),
+                            "error": "no_match"
+                        })
+                except SearchTextNotUnique:
+                    before_text, _ = hunk_to_before_after(hunk)
+                    failed_hunks.append({
+                        "before_text": before_text[:150] + ("..." if len(before_text) > 150 else ""),
+                        "hunk_lines": len(hunk),
+                        "error": "not_unique"
+                    })
+
+            if not success:
+                error_msg = f"Error: Failed to apply diffs to the system.\n"
+
+                for i, failed in enumerate(failed_hunks):
+                    if failed.get("error") == "not_unique":
+                        error_msg += f"Hunk #{i+1} matched multiple locations:\n```\n{failed['before_text']}\n```\n"
+                    else:
+                        error_msg += f"Hunk #{i+1} failed to match:\n```\n{failed['before_text']}\n```\n"
+
+                print(error_msg)
+                return (error_msg)
+
+            with open(target_system_file, 'w') as f:
+                f.write(content)
+
+            print("Successfully applied diff to the system.")
         except Exception as e:
-            print(f"Error deleting edge: {repr(e)}")
-    
+            print(f"Error applying diff: {repr(e)}")
 
-    tools["DeleteEdge"] = tool(runnable=delete_edge, name_or_callable="DeleteEdge")
-
-    # Tool: DeleteConditionalEdge
-    # Description: Deletes a conditional edge from a source node
-    def delete_conditional_edge(source: str) -> str:
-        """
-            Deletes a conditional edge from a source node.
-                source: Name of the source node
-        """
-        try:
-            result = target_system.delete_conditional_edge(source)
-            print(f"Conditional edge from '{source}' deleted successfully" if result else f"No conditional edge found from '{source}'")
-        except Exception as e:
-            print(f"Error deleting conditional edge: {repr(e)}")
-    
-
-    tools["DeleteConditionalEdge"] = tool(runnable=delete_conditional_edge, name_or_callable="DeleteConditionalEdge")
+    tools["ChangeCode"] = tool(runnable=change_code, name_or_callable="ChangeCode")
 
     # Tool: EndDesign
     # Description: Finalizes the system design process
@@ -385,20 +198,15 @@ def build_system():
             Finalizes the system design process.
         """
         try:
-            if not (target_system.entry_point and target_system.finish_point):
+            with open(target_system_file, 'r') as f:
+                content = f.read()
+
+            if "set_entry_point" not in content or "set_finish_point" not in content:
                 print("Error finalizing system: You must set an entry point and finish point before finalizing")
                 return None
-    
-            code_dir = "sandbox/workspace/automated_systems"
-            materialize_system(target_system, code_dir)
-            print(f"System code materialized to {code_dir}")
-    
-            pickle_name = target_system.system_name.replace("/", "_").replace("\\", "_").replace(":", "_") + ".pkl"
-            pickle_path = os.path.join(code_dir, pickle_name)
-            with open(pickle_path, 'wb') as f:
-                pickle.dump(target_system, f)
-            print(f"System pickled to {pickle_path}")
-    
+
+            # We could test the system here again
+
             print("Design process completed successfully.")
         except Exception as e:
             print(f"Error finalizing system: {repr(e)}")
@@ -418,7 +226,11 @@ def build_system():
         initial_messages, current_messages = messages[:2], messages[2:]
         last_messages = current_messages[-context_length:] if len(current_messages) >= context_length else current_messages
     
-        code_message = "Current Code:\n" + materialize_system(target_system, output_dir=None)
+        # Read the current content of the target system file
+        with open(target_system_file, 'r') as f:
+            code_content = f.read()
+
+        code_message = "Current Code:\n" + code_content
     
         full_messages = [SystemMessage(content=system_prompts.meta_agent)] + initial_messages + last_messages + [HumanMessage(content=code_message)]
         response = llm.invoke(full_messages)
@@ -436,19 +248,9 @@ def build_system():
     
         # Define the available tools in a namespace
         tools_namespace = {
-            "set_state_attributes": set_state_attributes,
             "pip_install": pip_install,
-            "add_imports": add_imports,
-            "add_node": add_node,
-            "add_tool": add_tool,
-            "edit_component": edit_component,
-            "add_edge": add_edge,
-            "add_conditional_edge": add_conditional_edge,
-            "delete_conditional_edge": delete_conditional_edge,
-            "set_endpoints": set_endpoints,
             "test_system": test_system,
-            "delete_node": delete_node,
-            "delete_edge": delete_edge,
+            "change_code": change_code,
             "end_design": end_design
         }
     
